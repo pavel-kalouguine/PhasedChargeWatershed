@@ -1,3 +1,5 @@
 [deps]
 ChargeFlipPhaser = "932843b2-4280-42b7-9350-1fdceb79e920"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SpaceGroups = "c9e7fe64-f4ce-462e-96f2-f923a4d16e38"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"

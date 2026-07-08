@@ -1,20 +1,27 @@
 using SpaceGroups
 using ChargeFlipPhaser
+using StaticArrays
+using JSON
 
 function load_data(file_path::String)
-    # TODO: Load the data from JSON file and create DiffractionData object as
-    # well as the Vector{Complex{Float64}} for the structure factors.
+    data = JSON.parsefile(file_path)
 
-    # When recrationg the space groups, make a sanity check - when all group elements are
-    # passed as generators, the order of the group should be equal to the number of elements passed
-    # (no other elements should appear in the group).
+    gens = [eval(Meta.parse(s)) for s in data["space_group"]]
+    G = SpaceGroupQuotient(gens)
+    @assert length(G) == length(gens) "error, elements do not form closed group"
 
-    # Just to check the dependencies, erase these lines later:
-    e1 = @SGE([0 1; -1 0]);
-    e2 = @SGE([1//1, 1//1]);
-    println(e1∘e2)
+    m = eval(Meta.parse(data["metric"]))
+    md = SMatrix{size(m, 1),size(m, 2),Float64}(m)
+    dd = DiffractionData(G, md)
+    sf = Vector{Complex{Float64}}(undef, length(data["reflections"]))
+    for (i, r) in enumerate(data["reflections"])
+        k = SVector{length(r["k"]),Int}(r["k"])
+        add_peak!(dd, k, Float64(r["I"]))
+        sf[i] = Complex(r["ampl"][1], r["ampl"][2])
+    end
 
+    dd, sf
 end
 
-filepath=joinpath(@__DIR__, "data", "CdYb.json")
-load_data(filepath)
+filepath = joinpath(@__DIR__, "data", "CdYb.json")
+dd, sf = load_data(filepath)
