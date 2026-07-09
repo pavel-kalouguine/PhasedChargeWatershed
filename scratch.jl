@@ -11,7 +11,8 @@ function load_data(file_path::String)
     @assert length(G) == length(gens) "error, elements do not form closed group"
 
     m = eval(Meta.parse(data["metric"]))
-    md = SMatrix{size(m, 1),size(m, 2),Float64}(m)
+    D, N = size(m)
+    md = SMatrix{D,N,Float64}(m)
     dd = DiffractionData(G, md)
     sf = Vector{Complex{Float64}}(undef, length(data["reflections"]))
     for (i, r) in enumerate(data["reflections"])
