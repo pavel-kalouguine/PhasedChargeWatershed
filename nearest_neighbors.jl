@@ -20,15 +20,28 @@ end
 
 function nearest_neighbors(B::AbstractMatrix)
     n = size(B, 1)
-    gram = round.(Int, B' * B)
+    if size(B, 2) != n
+        error("B must be a square matrix")
+    end
+    G = B' * B
+    gram = round.(Int, G)
+    if maximum(abs.(G - gram)) > 1e-6
+        error("B' * B must be an integer matrix")
+    end
     R = cholesky(Symmetric(Float64.(gram))).U
-    norm_bound = minimum(gram[i, i] for i in 1:n)
-    tol = 1e-6
 
+    shortest_distance = 2
+    norm_bound = shortest_distance^2
+    tol = 1e-6
     found = SVector{n,Int}[]
     x = zeros(Int, n)
     search!(found, x, n, 0.0, R, gram, norm_bound, tol)
-    isempty(found) && return found
+    if isempty(found)
+        error("no lattice vectors found within the specified norm bound")
+    end
     q_min = minimum(v' * gram * v for v in found)
+    if q_min != norm_bound
+        error("found a lattice vector shorter than distance 2")
+    end
     filter(v -> v' * gram * v == q_min, found)
 end
