@@ -63,7 +63,7 @@ nearest neighbors of the origin:
 function nearest_neighbors(B::AbstractMatrix{T} where T <: Real)
     n = size(B, 1)
     if size(B, 2) != n
-        error("B must be a square matrix")
+        error("B must be a square matrix, got size $(size(B, 1))×$(size(B, 2))")
     end
     G = B' * B
     gram = round.(Int, G)
