@@ -1,6 +1,7 @@
 using StaticArrays, LinearAlgebra
 
-function search!(found, x, i, acc, R, gram, norm_bound, tol)
+function search!(found::Vector{SVector{N, Int}}, x::Vector{Int}, i::Int, acc::Float64, R::Matrix{Float64}, 
+    gram::Matrix{Int}, norm_bound::Float64, tol::Float64)::Vector{SVector{N, Int}} where N
     n = length(x)
     if i == 0
         q = x' * gram * x
@@ -18,6 +19,46 @@ function search!(found, x, i, acc, R, gram, norm_bound, tol)
     end
 end
 
+
+"""
+        nearest_neighbors(B::AbstractMatrix)
+
+Return the lattice vectors corresponding to the nearest neighbors of the origin
+for a lattice of densely packed spheres of radius `1`, given a basis matrix `B`.
+
+The basis is expected to define a square lattice basis whose Gram matrix
+`B' * B` has integer entries. The function searches for all lattice vectors of
+squared length `4` (distance `2`), which are the nearest neighbors in this
+normalization.
+
+Errors are thrown when:
+
+    * `B` is not square;
+    * `B' * B` is not an integer matrix to within a tolerance of `1e-6`;
+    * no lattice vectors are found within the specified norm bound;
+    * a lattice vector shorter than distance `2` is found, indicating that the
+        input does not match the intended packed-sphere normalization.
+
+Example:
+
+```julia
+B = [2.0 1.0;
+         0.0 sqrt(3)]
+nearest_neighbors(B)
+```
+
+For the triangular lattice, this returns the coordinate vectors of the six
+nearest neighbors of the origin:
+```julia
+6-element Vector{SVector{2, Int64}}:
+ [0, -1]
+ [1, -1]
+ [-1, 0]
+ [1, 0]
+ [-1, 1]
+ [0, 1]
+```
+"""
 function nearest_neighbors(B::AbstractMatrix)
     n = size(B, 1)
     if size(B, 2) != n
