@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra
 
-function search!(found::Vector{SVector{N, Int}}, x::Vector{Int}, i::Int, acc::Float64, R::Matrix{Float64}, 
+function search!(found::Vector{SVector{N, Int}}, x::Vector{Int}, i::Int, acc::Float64, R::AbstractMatrix{Float64}, 
     gram::Matrix{Int}, norm_bound::Float64, tol::Float64)::Vector{SVector{N, Int}} where N
     n = length(x)
     if i == 0
@@ -35,7 +35,7 @@ Errors are thrown when:
 
     * `B` is not square;
     * `B' * B` is not an integer matrix to within a tolerance of `1e-6`;
-    * no lattice vectors of distance `2` (squared length `4`) are found;
+    * no lattice vectors are found within the specified norm bound;
     * a lattice vector shorter than distance `2` is found, indicating that the
         input does not match the intended packed-sphere normalization.
 
@@ -59,10 +59,10 @@ nearest neighbors of the origin:
  [0, 1]
 ```
 """
-function nearest_neighbors(B::AbstractMatrix)
+function nearest_neighbors(B::AbstractMatrix{T} where T <: Real)
     n = size(B, 1)
     if size(B, 2) != n
-        throw(DimensionMismatch("B must be square (got $(n)×$(size(B, 2)))"))
+        error("B must be a square matrix")
     end
     G = B' * B
     gram = round.(Int, G)
