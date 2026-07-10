@@ -35,7 +35,7 @@ Errors are thrown when:
 
     * `B` is not square;
     * `B' * B` is not an integer matrix to within a tolerance of `1e-6`;
-    * no lattice vectors are found within the specified norm bound;
+    * no lattice vectors of distance `2` (squared length `4`) are found;
     * a lattice vector shorter than distance `2` is found, indicating that the
         input does not match the intended packed-sphere normalization.
 
