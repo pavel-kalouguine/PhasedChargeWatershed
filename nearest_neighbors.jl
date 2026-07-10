@@ -73,17 +73,16 @@ function nearest_neighbors(B::AbstractMatrix{T} where T <: Real)
     R = cholesky(Symmetric(Float64.(gram))).U
 
     shortest_distance = 2
-    norm_bound = float(shortest_distance^2)
     tol = 1e-6
     found = SVector{n,Int}[]
     x = zeros(Int, n)
-    search!(found, x, n, 0.0, R, gram, norm_bound, tol)
+    search!(found, x, n, 0.0, R, gram, float(shortest_distance^2), tol)
     if isempty(found)
-        error("no lattice vectors of norm 2 found")
+        error("no lattice vectors of norm $shortest_distance found")
     end
     q_min = minimum(v' * gram * v for v in found)
-    if q_min < norm_bound
-        error("found a lattice vector of norm $(sqrt(q_min)) < 2")
+    if q_min < shortest_distance^2
+        error("found a lattice vector of norm $(sqrt(q_min)) < $shortest_distance")
     end
     filter(v -> v' * gram * v == q_min, found)
 end
