@@ -1,22 +1,23 @@
 using StaticArrays, LinearAlgebra
 
 function search!(found::Vector{SVector{N, Int}}, x::Vector{Int}, i::Int, acc::Float64, R::AbstractMatrix{Float64}, 
-    gram::Matrix{Int}, norm_bound::Float64, tol::Float64)::Vector{SVector{N, Int}} where N
+    gram::Matrix{Int}, norm_bound::Float64, tol::Float64)::Nothing where N
     n = length(x)
     if i == 0
         q = x' * gram * x
         (0 < q <= norm_bound) && push!(found, SVector{n,Int}(x))
-        return
+        return nothing
     end
     offset = sum(R[i, j] * x[j] for j in (i+1):n; init=0.0)
     remaining = norm_bound - acc
-    remaining < -tol && return
+    remaining < -tol && return nothing
     radius = sqrt(max(remaining, 0.0) + tol)
     for xi in ceil(Int, (-radius - offset) / R[i, i]):floor(Int, (radius - offset) / R[i, i])
         x[i] = xi
         term = R[i, i] * xi + offset
         search!(found, x, i - 1, acc + term^2, R, gram, norm_bound, tol)
     end
+    return nothing
 end
 
 
