@@ -78,11 +78,11 @@ function nearest_neighbors(B::AbstractMatrix)
     x = zeros(Int, n)
     search!(found, x, n, 0.0, R, gram, norm_bound, tol)
     if isempty(found)
-        error("no lattice vectors found within the specified norm bound")
+        error("no lattice vectors of norm 2 found")
     end
     q_min = minimum(v' * gram * v for v in found)
-    if q_min != norm_bound
-        error("found a lattice vector shorter than distance 2")
+    if q_min < norm_bound
+        error("found a lattice vector of norm $(sqrt(q_min)) < 2")
     end
     filter(v -> v' * gram * v == q_min, found)
 end
