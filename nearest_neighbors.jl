@@ -1,7 +1,7 @@
 using StaticArrays, LinearAlgebra
 
 function search!(found::Vector{SVector{N, Int}}, x::Vector{Int}, i::Int, acc::Float64, R::AbstractMatrix{Float64}, 
-    gram::Matrix{Int}, norm_bound::Float64, tol::Float64)::Nothing where N
+    gram::AbstractMatrix{Int}, norm_bound::Float64, tol::Float64)::Nothing where N
     n = length(x)
     if i == 0
         q = x' * gram * x
@@ -22,7 +22,7 @@ end
 
 
 """
-        nearest_neighbors(B::AbstractMatrix)
+        nearest_neighbors(B::AbstractMatrix{<:Real})
 
 Return the lattice vectors corresponding to the nearest neighbors of the origin
 for a lattice of densely packed spheres of radius `1`, given a basis matrix `B`.
@@ -73,7 +73,7 @@ function nearest_neighbors(B::AbstractMatrix{T} where T <: Real)
     R = cholesky(Symmetric(Float64.(gram))).U
 
     shortest_distance = 2
-    norm_bound = shortest_distance^2
+    norm_bound = float(shortest_distance^2)
     tol = 1e-6
     found = SVector{n,Int}[]
     x = zeros(Int, n)
