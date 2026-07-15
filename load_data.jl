@@ -59,10 +59,10 @@ function load_data(file_path::String)::PhasedData
         ϕ = first(ap.ϕ for ap in orbit.aps if ap.k == k) # Find the phase corresponding to `k` in the orbit.
         corr = exp(-2π * im * ϕ) # Phase factor needed to obtain the correct phase of the saved representative peak
         for ap in orbit.aps
-            f=f_saved * corr * exp(2π * im * (ap.ϕ))
-            push!(peaks, PhasedPeak(k, f))
-            if orbit isa ComplexOrbit 
-                push!(peaks, PhasedPeak(-k, conj(f))) # For orbits of complex type, add antipodes
+            f = f_saved * corr * exp(2π * im * ap.ϕ)
+            push!(peaks, PhasedPeak(ap.k, f))
+            if orbit isa ComplexOrbit
+                push!(peaks, PhasedPeak(-ap.k, conj(f))) # For orbits of complex type, add antipodes
             end
         end
     end
