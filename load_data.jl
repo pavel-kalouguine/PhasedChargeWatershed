@@ -8,7 +8,7 @@ using JSON
 
 Represents a phased Bragg peak.
 
-The data store the wave vector and the complex structure factor.
+The data stores the wave vector and the complex structure factor.
 """
 struct PhasedPeak{N}
     k::SVector{N,Int}
