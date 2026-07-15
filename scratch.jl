@@ -3,7 +3,41 @@ using ChargeFlipPhaser
 using StaticArrays
 using JSON
 
-function load_data(file_path::String)
+
+"""
+    PhasedPeak{N}
+
+Represents a phased Bragg peak.
+
+The data store the wave vector and the complex structure factor.
+"""
+struct PhasedPeak{N}
+    k::SVector{N, Int}
+    f::Complex{Float64}
+end
+
+
+
+"""
+        PhasedData{N, D}
+
+Represents the result of the phasing.
+
+Fields:
+- `G` is the space group quotient.
+- `md` is the metric data of the lattice; its columns are the basis vectors of the
+    (quasi) lattice in the `D`-dimensional physical space.
+- `peaks` is the collection of all phased peaks, including those related by the
+    symmetry transformations.
+"""
+struct PhasedData{N, D}
+    G::SpaceGroupQuotient{N}
+    md::SMatrix{D,N,Float64}
+    peaks::Vector{PhasedPeak{N}}
+end
+
+
+function load_data(file_path::String)::PhasedData
     data = JSON.parsefile(file_path)
 
     gens = [eval(Meta.parse(s)) for s in data["space_group"]]
@@ -13,22 +47,25 @@ function load_data(file_path::String)
     m = eval(Meta.parse(data["metric"]))
     D, N = size(m)
     md = SMatrix{D,N,Float64}(m)
-    dd = DiffractionData(G, md)
-    sf = Vector{Complex{Float64}}(undef, length(data["reflections"]))
-    for (i, r) in enumerate(data["reflections"])
-        k = SVector{length(r["k"]),Int}(r["k"])
-        orbit_length=add_peak!(dd, k, Float64(r["I"]))
-        if orbit_length==0
-            throw(ArgumentError("Reflection $k is already accounted for in the diffraction data"))
-        end
-        sf[i] = Complex(r["ampl"][1], r["ampl"][2])
-    end
-    # TODO: add a sanity check that the phases of structure factors of orbits of the real type are 
-    # consistent with the symmetry of the space group. Attention: such structure factors are 
-    # not necessarity real numbers!
+    peaks=PhasedPeak{N}[]
 
-    dd, sf
+    
+    for (i, r) in enumerate(data["reflections"])
+        k = SVector{length(r["k"]),Int}(r["k"]) # The wave vector (one per orbit)        
+        f = Complex(r["ampl"][1], r["ampl"][2]) # The structure factor corresponding to `k`
+        orbit=make_orbit(k, G)
+        if orbit isa ExtinctOrbit
+            throw(ArgumentError("The wavevector $k belongs to an extinct orbit."))
+        end
+        # TODO: Create a `PhasedPeak` for each element of the orbit (adding antipodes in the case of `RealOrbit`)
+        # Carefully keep track of phase factors, the saved representative should enter with the factor as saved,
+        # while the phases of the other elements of the orbiit should take into account the differences of the 
+        # phases of the corresponding `AffinePhase` objects. In the case of `ComplexOrbit`, the structure factor 
+        # of antipodal peaks should always be conjugates. 
+    end
+
+    PhasedData(G, md, peaks)
 end
 
 filepath = joinpath(@__DIR__, "data", "synthetic.json")
-dd, sf = load_data(filepath)
+phased_data = load_data(filepath)
