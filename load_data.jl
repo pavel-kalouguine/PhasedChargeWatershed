@@ -48,8 +48,8 @@ function load_data(file_path::String)::PhasedData
     md = SMatrix{D,N,Float64}(m)
     peaks=PhasedPeak{N}[]
 
-    for (i, r) in enumerate(data["reflections"])
-        k = SVector{length(r["k"]),Int}(r["k"]) # The wave vector (one per orbit)        
+    for r in data["reflections"]
+        k = SVector{length(r["k"]),Int}(r["k"]) # The wave vector (one per orbit)
         f_saved = Complex(r["ampl"][1], r["ampl"][2]) # The saved structure factor corresponding to `k`
         orbit=make_orbit(k, G)
         if orbit isa ExtinctOrbit
