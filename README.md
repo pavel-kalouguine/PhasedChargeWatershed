@@ -13,6 +13,6 @@ pkg> registry add https://github.com/pavel-kalouguine/PKPackages
 
 Activate the local environment and instantiate the project:
 ```
-(@v1.11) pkg> activate .
+(@v1.12) pkg> activate .
 (PhasedChargeWatershed) pkg> instantiate
 ```

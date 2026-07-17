@@ -1,28 +1,5 @@
-using StaticArrays
-using FFTW
-using LinearAlgebra
 
-"""
-        SamplingGrid{N, M}
 
-Parameters of a `M`-dimensional affine lattice commensurate to an `N`-dimensional
-periodic lattice.
-
-- `direction`: rows are the `M` vectors of the `N`-dimensional lattice common
-    to the affine sublattice.
-- `size`: number of sampling points along each of the `M` affine lattice directions.
-     This corresponds to the output array shape.
-- `origin`: translation of the affine lattice origin with respect to the
-    origin of the `N`-dimensional lattice.
-
-This structure can be used both for the watershed algorithm and for the visualization 
-(with `M=2`)
-"""
-struct SamplingGrid{N,M}
-    direction::SMatrix{M,N,Int}
-    origin::SVector{N,Float64}
-    size::NTuple{M,Int}
-end
 
 # TODO: consider using FFTViews.jl utility instead of this function
 alias(k::SVector{M,Int}, size::NTuple{M,Int}) where M =
