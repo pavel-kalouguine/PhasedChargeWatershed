@@ -1,5 +1,6 @@
 using StaticArrays
 using FFTW
+using LinearAlgebra
 
 """
         SamplingGrid{N, D}
@@ -26,15 +27,14 @@ end
 # Copy-pasted from ChargeFlipPhaser, probably should export it properly
 alias(k::SVector{M,Int}, size::NTuple{M,Int}) where M =
     tuple((mod.(k, SVector{M,Int}(size...)) .+ 1)...)
-
-# TODO: take `origin` into account, right now it is implicitly treated as zero. 
+ 
 # TODO: use irfft instead of complex ifft for speed
 function sample_density(peaks::Vector{PhasedPeak{N}}, grid::SamplingGrid{N, M})::Array{Float64, M} where {N, M}
     # Compute the Fourier coefficients
     fp=zeros(Complex{Float64}, grid.size...) # Accumulator array
     for p in peaks
         kp=alias(grid.direction * p.k, grid.size) # Projected wavevector
-        fp[kp...]+= p.f
+        fp[kp...]+= p.f*exp(1im * 2π * p.k ⋅ grid.origin) # Take the origin into account
     end
     real.(ifft(fp))
 end
