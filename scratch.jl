@@ -1,4 +1,4 @@
-using GLMakie
+using GLMakie, StaticArrays
 
 include(joinpath(@__DIR__, "load_data.jl"))
 include(joinpath(@__DIR__, "sampling.jl"))
