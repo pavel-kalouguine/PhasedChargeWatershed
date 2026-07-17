@@ -1,7 +1,9 @@
 using GLMakie, StaticArrays
 
-include(joinpath(@__DIR__, "load_data.jl"))
-include(joinpath(@__DIR__, "sampling.jl"))
+include(joinpath(@__DIR__, "src", "PhasedChargeWatershed.jl"))
+
+import PhasedChargeWatershed: load_data, SamplingGrid, sample_density
+
 
 filepath = joinpath(@__DIR__, "data", "synthetic_pg.json")
 phased_data = load_data(filepath)

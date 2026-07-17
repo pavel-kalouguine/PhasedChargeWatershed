@@ -1,4 +1,4 @@
-using StaticArrays, LinearAlgebra
+
 
 function search!(found::Vector{SVector{N, Int}}, x::Vector{Int}, i::Int, acc::Float64, R::AbstractMatrix{Float64}, 
     gram::AbstractMatrix{Int}, norm_bound::Float64, tol::Float64)::Nothing where N
