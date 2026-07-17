@@ -24,15 +24,37 @@ Only the non-redundant half-spectrum along the first axis is stored, consistent
 with `irfft` input layout.
 """
 function sample_density(peaks::AbstractVector{<:PhasedPeak{N}}, grid::SamplingGrid{N,M})::Array{Float64,M} where {N,M}
-    h=div(grid.size[1], 2) + 1 # Half of the size of the first dimension, for irfft
-    # Compute the Fourier coefficients
+    ρ = zeros(Float64, grid.size...)
+    sample_density!(ρ, peaks, grid)
+    return ρ
+end
+
+
+function sample_density!(
+    ρ::Array{Float64,M},
+    peaks::AbstractVector{<:PhasedPeak{N}},
+    grid::SamplingGrid{N,M}
+)::Nothing where {N,M}
+
+    @assert size(ρ) == grid.size "dimension mismatch between ρ and grid"
+
+    h = div(grid.size[1], 2) + 1
     half_size = (h, grid.size[2:end]...)
-    fp=zeros(Complex{Float64}, half_size...) # Accumulator array
+
+    # 1. Allocate the complex accumulator locally
+    fp = zeros(Complex{Float64}, half_size...)
+
+    # 2. Compute the Fourier coefficients
     for p in peaks
-        kp=alias(grid.direction * p.k, grid.size) # Projected wavevector
-        if kp[1] <= h  # Only accumulate the first half of the first dimension
-            fp[kp...] += p.f*exp(1im * 2π * p.k ⋅ grid.origin) # Take the origin into account
+        kp = alias(grid.direction * p.k, grid.size)
+        if kp[1] <= h
+            fp[kp...] += p.f * exp(1im * 2π * (p.k ⋅ grid.origin))
         end
     end
-    irfft(fp, grid.size[1]) # Inverse Fourier transform to get the density
+
+    # 3. Plan the IRFFT and execute directly into the user-provided ρ array
+    plan = plan_irfft(fp, grid.size[1])
+    mul!(ρ, plan, fp)
+
+    return nothing
 end
