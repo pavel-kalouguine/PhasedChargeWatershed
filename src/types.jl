@@ -51,3 +51,9 @@ struct SamplingGrid{N,M}
     origin::SVector{N,Float64}
     size::NTuple{M,Int}
 end
+
+
+struct WatershedGrid{N}
+    grid::SamplingGrid{N,1}
+    neighbors::Vector{Int}
+end

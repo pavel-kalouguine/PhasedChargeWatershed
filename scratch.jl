@@ -1,18 +1,42 @@
-using GLMakie, StaticArrays
+using StaticArrays
 
 include(joinpath(@__DIR__, "src", "PhasedChargeWatershed.jl"))
 
-import PhasedChargeWatershed: load_data, SamplingGrid, sample_density
+import PhasedChargeWatershed: load_data, SamplingGrid, sample_density, PhasedData, PhasedPeak, nearest_neighbors
+import ChargeFlipPhaser: basis_of_dense_packing
+import NormalForms: snf
+
+function quadratic_moment(peaks::Vector{PhasedPeak{N}}) where N
+    # Compute the quadratic moment of the phased peaks
+    Q = zeros(Float64, N, N)
+    for peak in peaks
+        k = peak.k
+        f = peak.f
+        Q += abs2(f) * (k * k')
+    end
+    return Symmetric(Q) / sum(abs2.(getfield.(peaks, :f)))
+end
 
 
-filepath = joinpath(@__DIR__, "data", "synthetic_pg.json")
+
+filepath = joinpath(@__DIR__, "data", "synthetic.json")
 phased_data = load_data(filepath)
 
-grid = SamplingGrid(SA[2 0; 0 2], SA[0.5, 0.5], (1024, 1024))
-ρ = sample_density(phased_data.peaks, grid)
 
-fig = Figure()
-ax = Axis(fig[1, 1], aspect = DataAspect())
-heatmap!(ax, ρ)
-
-fig
+function create_watershed_grid(phased_data::PhasedData{N,D}) where {N,D}
+    Q = quadratic_moment(phased_data.peaks)
+    N, _= size(Q)
+    B0=basis_of_dense_packing(N)
+    neighbors = nearest_neighbors(B0)
+    scaling_factor=10 # Linear scaling
+    n_attempts=100
+    i=0
+    while true
+        i+=1
+        R = svd(randn(N, N)).U # Random orthogonal matrix
+        B=R*B0 # Rotated basis
+        if i>n_attempts
+            break
+        end
+    end
+end
