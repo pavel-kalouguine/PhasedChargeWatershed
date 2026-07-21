@@ -12,7 +12,8 @@ function load_data(file_path::String)::PhasedData
     peaks=PhasedPeak{N}[]
 
     for r in data["reflections"]
-        k = SVector{length(r["k"]),Int}(r["k"]) # The wave vector (one per orbit)
+        length(r["k"]) == N || throw(ArgumentError("reflection k has length $(length(r[\"k\"])), expected $N"))
+        k = SVector{N,Int}(r["k"])
         f_saved = Complex(r["ampl"][1], r["ampl"][2]) # The saved structure factor corresponding to `k`
         orbit=make_orbit(k, G)
         if orbit isa ExtinctOrbit
