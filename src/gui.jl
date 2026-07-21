@@ -23,7 +23,7 @@ function build_viewer(pd::PhasedData{N}) where {N}
     fig = Figure(size = (950, 950))
 
     #density image
-    ax = Axis(fig[1, 1], title = "density section")
+    ax = Axis(fig[1, 1], aspect = DataAspect(), title = "density section")
     hidedecorations!(ax)
 
     #controls
@@ -80,13 +80,10 @@ function build_viewer(pd::PhasedData{N}) where {N}
 
     density = lift(g -> sample_density(pd.peaks, g), grid)
 
-    #image aspect follows requested size
-    set_aspect(g) = (ax.aspect = AxisAspect(g.size[1] / g.size[2]))
-    on(set_aspect, grid)
-    set_aspect(grid[])
-
     heatmap!(ax, density; colormap = :jet,
              colorrange = lift(ρ -> (minimum(ρ), maximum(ρ) + eps()), density))
+
+    on(_ -> reset_limits!(ax), density)
 
     fig
 end
