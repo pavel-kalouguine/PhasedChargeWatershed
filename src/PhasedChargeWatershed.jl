@@ -6,8 +6,8 @@ import FFTW: irfft
 import ChargeFlipPhaser: basis_of_dense_packing
 import SpaceGroups: SpaceGroupQuotient, make_orbit, ExtinctOrbit, ComplexOrbit, RealOrbit, @SGE
 import JSON: parsefile
-import Makie: Figure, Axis, DataAspect, hidedecorations!, GridLayout, Label,
-    Textbox, Slider, set_close_to!, Observable, lift, on, heatmap!
+import Makie: Figure, Axis, AxisAspect, hidedecorations!, GridLayout, Label,
+    Textbox, Slider, Button, set_close_to!, Observable, lift, on, heatmap!
 
 
 include("types.jl")
