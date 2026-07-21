@@ -5,10 +5,10 @@ include(joinpath(@__DIR__, "src", "PhasedChargeWatershed.jl"))
 import PhasedChargeWatershed: load_data, SamplingGrid, sample_density
 
 
-filepath = joinpath(@__DIR__, "data", "synthetic_pg.json")
+filepath = joinpath(@__DIR__, "data", "CdYb2.json")
 phased_data = load_data(filepath)
 
-grid = SamplingGrid(SA[2 0; 0 2], SA[0.5, 0.5], (1024, 1024))
+grid = SamplingGrid(SA[0 1 1 1 1 -1; 1 0 0 0 0 0], SA[0., 0., 0., 0., 0., 0.], (843, 377))
 ρ = sample_density(phased_data.peaks, grid)
 
 fig = Figure()
