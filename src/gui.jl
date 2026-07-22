@@ -12,14 +12,20 @@
 # The code uses only the Makie API; the launcher picks the backend (GLMakie).
 
 """
-    build_viewer(pd::PhasedData) -> Figure
+    build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing) -> Figure
 
 Build an interactive window that shows a 2D section of the density stored in `pd`.
 The sampling grid (`direction`, `origin`, `size`) is edited in the controls and
-applied with the "Apply" button. On open it shows the default section (the first two
-lattice directions, origin at 0, 1024×1024).
+applied with the "Apply" button. "Add a view" calls `on_add_view(grid)` with the
+current sampling grid, so the caller can open another window; `init` is a `SamplingGrid`
+the controls start from (used to clone a view). On open it shows `init`, or the default
+section (first two axes, origin 0, 1024×1024) when `init` is not given.
 """
-function build_viewer(pd::PhasedData{N}) where {N}
+function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing) where {N}
+    init_grid = init === nothing ?
+        SamplingGrid(SMatrix{2,N,Int}([i == j ? 1 : 0 for i in 1:2, j in 1:N]),
+                     zero(SVector{N,Float64}), (1024, 1024)) : init
+
     fig = Figure(size = (950, 950))
 
     #density image
@@ -32,15 +38,24 @@ function build_viewer(pd::PhasedData{N}) where {N}
     #direction
     dircol = GridLayout(controls[1, 1])
     Label(dircol[1, 1:N], "direction (2×$N)")
-    dir_boxes = [Textbox(dircol[1+i, j]; width = 46, validator = Int,
-                         stored_string = string(i == j ? 1 : 0))
-                 for i in 1:2, j in 1:N]
+    step_box!(tb, d) = (tb.displayed_string[] =
+        string(something(tryparse(Int, something(tb.displayed_string[], "")), 0) + d))
+    dir_boxes = Matrix{Textbox}(undef, 2, N)
+    for i in 1:2, j in 1:N
+        cell = GridLayout(dircol[1+i, j])
+        tb = Textbox(cell[1:2, 1]; width = 38, validator = Int, stored_string = string(init_grid.direction[i, j]))
+        up = Button(cell[1, 2]; label = "▲", width = 18, fontsize = 8)
+        dn = Button(cell[2, 2]; label = "▼", width = 18, fontsize = 8)
+        on(_ -> step_box!(tb, 1), up.clicks)
+        on(_ -> step_box!(tb, -1), dn.clicks)
+        dir_boxes[i, j] = tb
+    end
 
     #origin
     origcol = GridLayout(controls[1, 2])
     Label(origcol[1, 1:N], "origin (0…1)")
-    orig_sliders = [Slider(origcol[2, j]; range = 0:0.01:1, startvalue = 0.0, width = 90) for j in 1:N]
-    orig_boxes   = [Textbox(origcol[3, j]; width = 60, validator = Float64, stored_string = "0.0") for j in 1:N]
+    orig_sliders = [Slider(origcol[2, j]; range = 0:0.01:1, startvalue = init_grid.origin[j], width = 90) for j in 1:N]
+    orig_boxes   = [Textbox(origcol[3, j]; width = 60, validator = Float64, stored_string = string(init_grid.origin[j])) for j in 1:N]
     for j in 1:N
         on(orig_sliders[j].value) do v
             orig_boxes[j].displayed_string[] = string(round(v; digits = 2))
@@ -54,13 +69,12 @@ function build_viewer(pd::PhasedData{N}) where {N}
     #size
     sizecol = GridLayout(controls[1, 3])
     Label(sizecol[1, 1:2], "size")
-    size_boxes = [Textbox(sizecol[2, j]; width = 70, validator = Int, stored_string = "1024") for j in 1:2]
+    size_boxes = [Textbox(sizecol[2, j]; width = 70, validator = Int, stored_string = string(init_grid.size[j])) for j in 1:2]
 
-    #apply
-    apply = Button(controls[1, 4], label = "Apply")
+    #apply / add a cloned view
+    apply   = Button(controls[1, 4], label = "Apply")
+    addview = Button(controls[1, 5], label = "Add a view")
 
-    # Read an integer from a box's SHOWN text (so values apply even without Enter),
-    # falling back to `default` when the text is empty or not a number.
     function read_int(tb, default)
         s = something(tb.displayed_string[], something(tb.stored_string[], ""))
         something(tryparse(Int, s), default)
@@ -68,15 +82,16 @@ function build_viewer(pd::PhasedData{N}) where {N}
 
     # Assemble the sampling grid from all the controls.
     function current_grid()
-        d = SMatrix{2,N,Int}([read_int(dir_boxes[i, j], i == j ? 1 : 0) for i in 1:2, j in 1:N])
+        d = SMatrix{2,N,Int}([read_int(dir_boxes[i, j], init_grid.direction[i, j]) for i in 1:2, j in 1:N])
         o = SVector{N,Float64}([sl.value[] for sl in orig_sliders])
-        s = (max(2, read_int(size_boxes[1], 1024)), max(2, read_int(size_boxes[2], 1024)))
+        s = (max(2, read_int(size_boxes[1], init_grid.size[1])), max(2, read_int(size_boxes[2], init_grid.size[2])))
         SamplingGrid(d, o, s)
     end
 
-    #recompute only when Apply is pressed
+    #recompute only when Apply is pressed, "Add a view" clones the current section
     grid = Observable(current_grid())
     on(_ -> (grid[] = current_grid()), apply.clicks)
+    on(_ -> on_add_view(grid[]), addview.clicks)
 
     density = lift(g -> sample_density(pd.peaks, g), grid)
 
