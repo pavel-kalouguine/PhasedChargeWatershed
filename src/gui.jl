@@ -32,9 +32,18 @@ function build_viewer(pd::PhasedData{N}) where {N}
     #direction
     dircol = GridLayout(controls[1, 1])
     Label(dircol[1, 1:N], "direction (2×$N)")
-    dir_boxes = [Textbox(dircol[1+i, j]; width = 46, validator = Int,
-                         stored_string = string(i == j ? 1 : 0))
-                 for i in 1:2, j in 1:N]
+    step_box!(tb, d) = (tb.displayed_string[] =
+        string(something(tryparse(Int, something(tb.displayed_string[], "")), 0) + d))
+    dir_boxes = Matrix{Textbox}(undef, 2, N)
+    for i in 1:2, j in 1:N
+        cell = GridLayout(dircol[1+i, j])
+        tb = Textbox(cell[1:2, 1]; width = 38, validator = Int, stored_string = string(i == j ? 1 : 0))
+        up = Button(cell[1, 2]; label = "▲", width = 18, fontsize = 8)
+        dn = Button(cell[2, 2]; label = "▼", width = 18, fontsize = 8)
+        on(_ -> step_box!(tb, 1), up.clicks)
+        on(_ -> step_box!(tb, -1), dn.clicks)
+        dir_boxes[i, j] = tb
+    end
 
     #origin
     origcol = GridLayout(controls[1, 2])
