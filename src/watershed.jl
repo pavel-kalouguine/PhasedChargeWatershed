@@ -19,7 +19,11 @@ function quadratic_moment(peaks::Vector{PhasedPeak{N}}) where N
         f = peak.f
         Q += abs2(f) * (k * k')
     end
-    return Symmetric(Q) / sum(abs2.(getfield.(peaks, :f)))
+    total_intensity = sum(abs2.(getfield.(peaks, :f)))
+    if total_intensity == 0.0
+        throw(ArgumentError("Total intensity of peaks is zero; cannot compute quadratic moment."))
+    end
+    return Symmetric(Q/total_intensity)
 end
 
 
