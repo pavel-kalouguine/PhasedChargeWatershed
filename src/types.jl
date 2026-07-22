@@ -53,6 +53,25 @@ struct SamplingGrid{N,M}
 end
 
 
+"""
+        WatershedGrid{N}
+
+Parameters of a cyclic sampling grid, i.e. a `SamplingGrid{N,M}` with `M=1`,
+together with the neighborhood relation used by the watershed algorithm.
+
+In cyclic grids the sites are indexed by a single integer. The field
+`neighbors` is a collection of such indices corresponding to the sites
+declared as neighbors of the origin. In general, two sites of the grid are
+neighbors if the difference of their indices modulo the size of the grid
+belongs to the collection `neighbors`. This relation of neighborhood is used
+by the watershed algorithm when comparing the values of the density on
+neighboring sites.
+
+Fields:
+- `grid`: the underlying `SamplingGrid{N,1}`.
+- `neighbors`: the indices, modulo the grid size, defining the neighborhood
+    relation between sites.
+"""
 struct WatershedGrid{N}
     grid::SamplingGrid{N,1}
     neighbors::Vector{Int}
