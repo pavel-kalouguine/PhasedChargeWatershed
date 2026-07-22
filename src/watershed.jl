@@ -114,7 +114,7 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
         i+=1
         R = svd(randn(N, N)).U # Random orthogonal matrix
         B=R*B0 # Rotated basis
-        L=round.(Int, scaling_factor*inv(B)*Q^0.5)
+        L=round.(Int, scaling_factor*(B\sqrt(Q)))
         s=nothing
         try
             # TODO: consider using BigInt to avoid integer overflow, but this will be slower.
