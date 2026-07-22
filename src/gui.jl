@@ -12,7 +12,7 @@
 # The code uses only the Makie API; the launcher picks the backend (GLMakie).
 
 """
-    build_viewer(pd::PhasedData; on_add_view, init) -> Figure
+    build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing) -> Figure
 
 Build an interactive window that shows a 2D section of the density stored in `pd`.
 The sampling grid (`direction`, `origin`, `size`) is edited in the controls and
