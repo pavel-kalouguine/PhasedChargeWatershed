@@ -11,7 +11,7 @@ import PhasedChargeWatershed: load_data, build_viewer
 isempty(ARGS) && error("usage: julia --project viewer.jl <data.json>")
 pd = load_data(ARGS[1])
 
-# the set of open windows,the program runs until the last one is closed
+# The set of open windows; the program runs until the last one is closed
 screens = Set{GLMakie.Screen}()
 
 function add_view(init = nothing)
