@@ -113,10 +113,11 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
         L=round.(Int, scaling_factor*inv(B)*Q^0.5)
         s=nothing
         try
-            # TODO: consider using BigInt to avoid integer overflow, but this will be slower. 
+            # TODO: consider using BigInt to avoid integer overflow, but this will be slower.
             # The current implementation may fail for large scaling_factor.
-            s=snf(L) 
-        catch
+            s = snf(L)
+        catch err
+            err isa InterruptException && rethrow()
             continue # SNF failed, try again
         end
         divisors=diag(s)
