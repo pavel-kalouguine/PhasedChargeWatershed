@@ -48,7 +48,10 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
     fig = Figure(size = (950, 950))
 
     #density image
-    ax = Axis(fig[1, 1], aspect = DataAspect(), title = "density section")
+    got_global = colorrange !== nothing
+    scale_note = got_global ? "global colour scale" : "per-section colour scale (global density limits unavailable)"
+    ax = Axis(fig[1, 1], aspect = DataAspect(), title = "density section",
+              subtitle = scale_note, subtitlecolor = got_global ? :black : :red)
     hidedecorations!(ax)
 
     #controls
