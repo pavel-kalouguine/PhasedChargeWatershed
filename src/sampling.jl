@@ -55,6 +55,6 @@ function sample_density!(
     # 3. Plan the IRFFT and execute directly into the user-provided ρ array
     plan = plan_irfft(fp, grid.size[1])
     mul!(ρ, plan, fp)
-
+    ρ .*= prod(grid.size)  # scale by the number of points in the full grid
     return nothing
 end
