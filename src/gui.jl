@@ -100,5 +100,7 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
 
     on(_ -> reset_limits!(ax), density)
 
+    resize_to_layout!(fig)
+
     fig
 end

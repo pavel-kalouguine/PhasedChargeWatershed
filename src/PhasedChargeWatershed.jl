@@ -8,7 +8,7 @@ import ChargeFlipPhaser: basis_of_dense_packing
 import SpaceGroups: SpaceGroupQuotient, make_orbit, ExtinctOrbit, ComplexOrbit, RealOrbit, @SGE
 import JSON: parsefile
 import Makie: Figure, Axis, DataAspect, reset_limits!, hidedecorations!, GridLayout, Label,
-    Textbox, Slider, Button, set_close_to!, Observable, lift, on, heatmap!
+    Textbox, Slider, Button, set_close_to!, Observable, lift, on, heatmap!, resize_to_layout!
 
 
 include("types.jl")
