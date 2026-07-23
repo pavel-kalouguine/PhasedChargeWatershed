@@ -1,18 +1,14 @@
-using GLMakie, StaticArrays
+using StaticArrays
 
 include(joinpath(@__DIR__, "src", "PhasedChargeWatershed.jl"))
 
-import PhasedChargeWatershed: load_data, SamplingGrid, sample_density
+import PhasedChargeWatershed: load_data, create_watershed_grid
 
 
-filepath = joinpath(@__DIR__, "data", "synthetic_pg.json")
+
+filepath = joinpath(@__DIR__, "data", "CdYb.json")
 phased_data = load_data(filepath)
 
-grid = SamplingGrid(SA[2 0; 0 2], SA[0.5, 0.5], (1024, 1024))
-ρ = sample_density(phased_data.peaks, grid)
 
-fig = Figure()
-ax = Axis(fig[1, 1], aspect = DataAspect())
-heatmap!(ax, ρ)
 
-fig
+create_watershed_grid(phased_data)

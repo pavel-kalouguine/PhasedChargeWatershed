@@ -9,9 +9,11 @@ GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+NormalForms = "109d20d8-9763-411c-9b60-7eb2a068657f"
 SpaceGroups = "c9e7fe64-f4ce-462e-96f2-f923a4d16e38"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 LinearAlgebra = "1.12.0"
 Makie = ">= 0.16"
+NormalForms = "0.1.10"
