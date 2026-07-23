@@ -12,16 +12,35 @@
 # The code uses only the Makie API; the launcher picks the backend (GLMakie).
 
 """
-    build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing) -> Figure
+    global_density_limits(pd::PhasedData) -> Tuple{Float64,Float64}
+
+Estimate the global minimum and maximum of the density over the whole unit cell, for
+use as a common colour range in all section heatmaps. The density is sampled once on a
+minimal watershed grid (default `density_factor`), which covers the cell densely and
+respects the data anisotropy; the extrema are slightly underestimated (finite grid), so
+a few points near the true min/max may saturate. Returns `nothing` if no grid was built.
+"""
+function global_density_limits(pd::PhasedData)
+    wg = create_watershed_grid(pd)
+    wg === nothing && return nothing
+    ρ = sample_density(pd.peaks, wg.grid)
+    lo, hi = extrema(ρ)
+    return (lo, hi > lo ? hi : hi + eps(hi))
+end
+
+"""
+    build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing, colorrange = nothing) -> Figure
 
 Build an interactive window that shows a 2D section of the density stored in `pd`.
 The sampling grid (`direction`, `origin`, `size`) is edited in the controls and
 applied with the "Apply" button. "Add a view" calls `on_add_view(grid)` with the
 current sampling grid, so the caller can open another window; `init` is a `SamplingGrid`
 the controls start from (used to clone a view). On open it shows `init`, or the default
-section (first two axes, origin 0, 1024×1024) when `init` is not given.
+section (first two axes, origin 0, 1024×1024) when `init` is not given. `colorrange`, if
+given, fixes the heatmap colour range for every section (a shared/global scale);
+otherwise each section is scaled to its own extrema.
 """
-function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing) where {N}
+function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing, colorrange = nothing) where {N}
     init_grid = init === nothing ?
         SamplingGrid(SMatrix{2,N,Int}([i == j ? 1 : 0 for i in 1:2, j in 1:N]),
                      zero(SVector{N,Float64}), (1024, 1024)) : init
@@ -95,8 +114,8 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
 
     density = lift(g -> sample_density(pd.peaks, g), grid)
 
-    heatmap!(ax, density; colormap = :jet,
-             colorrange = lift(ρ -> (minimum(ρ), maximum(ρ) + eps()), density))
+    cr = colorrange === nothing ? lift(ρ -> (minimum(ρ), maximum(ρ) + eps()), density) : colorrange
+    heatmap!(ax, density; colormap = :jet, colorrange = cr)
 
     on(_ -> reset_limits!(ax), density)
 
