@@ -71,10 +71,21 @@ Fields:
 - `grid`: the underlying `SamplingGrid{N,1}`.
 - `neighbors`: the indices, modulo the grid size, defining the neighborhood
     relation between sites.
+- `basis_indices`: the indices of the basis vectors inherited from the dense
+    sphere packing in the `N`-dimensional space.
+- `L`: the integer matrix transforming the sampling grid to the lattice of
+    integer points in the `N`-dimensional space. In particular, the columns
+    of `inv(L)` correspond to the grid positions indexed by `basis_indices`.
+- `Q`: the covariance matrix (quadratic moment) of the Bragg peaks. The
+    sampling grid is constructed so that the values of the quadratic form
+    defined by `Q` on the neighbors of the origin are close to each other.
 """
 struct WatershedGrid{N}
-    grid::SamplingGrid{N,1}
+    grid::SamplingGrid{N,1}    
     neighbors::Vector{Int}
+    basis_indices::SVector{N,Int}
+    L::SMatrix{N,N,Int}
+    Q::Symmetric{Float64}
 end
 
 """

@@ -28,10 +28,10 @@ end
 
 
 """
-    quadratic_moment_on_neighbors(wg::WatershedGrid{N}, Q::AbstractMatrix) where N
+    quadratic_moment_on_neighbors(wg::WatershedGrid{N}) where N
 
 Compute, for each neighbor of the origin in the watershed grid `wg`, the value of the 
-quadratic form `Q` evaluated at the corresponding fractional lattice site.
+quadratic form `wg.Q` evaluated at the corresponding fractional lattice site.
 
 The watershed grid forms a cyclic lattice, which can be indexed by a single integer.
 The position of the neighbor indexed by `shift` is a rational vector `x` computed as
@@ -39,15 +39,13 @@ The position of the neighbor indexed by `shift` is a rational vector `x` compute
 subtracting the nearest integer (`round.(x)`), where `direction` is the
 grid's direction matrix and `d` is the grid size along its first axis (the actual 
 computation is performed with floating point numbers to avoid integer overflow).
-The returned value for that neighbor is `x' * Q * x`.
-
-Throws an `ArgumentError` if `Q` is not an `N x N` matrix.
+The returned value for that neighbor is `x' * wg.Q * x`.
 
 Returns a `Vector{Float64}` with one entry per neighbor in `wg.neighbors`.
 """
-function quadratic_moment_on_neighbors(wg::WatershedGrid{N}, Q::AbstractMatrix) where N
-    if size(Q) != (N, N)
-        throw(ArgumentError("Q must be an $N x $N matrix"))
+function quadratic_moment_on_neighbors(wg::WatershedGrid{N}) where N
+    if size(wg.Q) != (N, N)
+        throw(ArgumentError("Quadratic moment must be an $N x $N matrix"))
     end
     grid = wg.grid
     direction = grid.direction
@@ -59,7 +57,7 @@ function quadratic_moment_on_neighbors(wg::WatershedGrid{N}, Q::AbstractMatrix) 
         shift=neighbors[n]
         x=dir*shift/d
         x=x-round.(x)
-        vals[n]=x' * Q * x
+        vals[n]=x' * wg.Q * x
     end
     return vals
 end
@@ -132,13 +130,14 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
         dir=s.V[:, end]
         direction = SMatrix{1, N, Int}(dir')
         grid=SamplingGrid{N,1}(direction, zero(SVector{N,Float64}), (d,))
+        basis_indices=SVector{N,Int}(mod.(s.U[end,:], d))
         neighbors=Int[]
         for u in nbs
-            shift=s.U*u
-            push!(neighbors, mod(shift[end], d))
+            shift=basis_indices'*u
+            push!(neighbors, mod(shift, d))
         end
-        candidate=WatershedGrid(grid, neighbors)
-        vals=quadratic_moment_on_neighbors(candidate, Q)
+        candidate=WatershedGrid(grid, neighbors, basis_indices, SMatrix{N,N,Int}(L), Q)
+        vals=quadratic_moment_on_neighbors(candidate)
         max_val=maximum(vals)
         if max_val < smallest_val
             smallest_val=max_val
