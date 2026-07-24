@@ -76,3 +76,80 @@ struct WatershedGrid{N}
     grid::SamplingGrid{N,1}
     neighbors::Vector{Int}
 end
+
+"""
+        SaddlePoint
+
+Represents the saddle point formed at the moment two drainage basins meet.
+
+Fields:
+- `labels`: tuple of basin labels assigned during the watershed pre-processing step.
+    The labels are stored in ascending order: `labels[1] <= labels[2]`.
+- `sites`: indices of the neighboring sites where the basins meet.
+- `values`: density values at these sites.
+"""
+struct SaddlePoint
+    labels::Tuple{Int,Int}
+    sites::Tuple{Int,Int}
+    values::Tuple{Float64,Float64}
+
+    function SaddlePoint(
+        labels::Tuple{Int,Int},
+        sites::Tuple{Int,Int},
+        values::Tuple{Float64,Float64},
+    )
+        if labels[1] <= labels[2]
+            return new(labels, sites, values)
+        end
+        return new((labels[2], labels[1]), (sites[2], sites[1]), (values[2], values[1]))
+    end
+end
+
+
+"""
+        WatershedResult{N}
+
+Represents the result of the watershed segmentation algorithm.
+
+Fields:
+- `wg`: the underlying watershed grid parameters.
+- `values`: the values of the density at the grid sites.
+- `labels`: the labels assigned to grid sites on the pre-processing pass.
+- `summits`: the indices of the highest point for each label.
+- `saddles`: a dictionary of the saddle points indexed by ordered tuple of labels.
+- `basins`: the indices of drainage basins, constructed on the postprocessing stage.
+    Each basin may comprise sites with several labels; the basin index equals
+    the smallest label of the sites composing the basin.
+"""
+struct WatershedResult{N}
+    wg::WatershedGrid{N}
+    values::Vector{Float64}
+    labels::Vector{Int}
+    summits::Vector{Int}
+    saddles::Dict{Tuple{Int,Int}, SaddlePoint}
+    basins::Vector{Int}
+end
+
+
+
+"""
+    WatershedResult(wg::WatershedGrid{N}) where N
+
+Construct an empty `WatershedResult{N}` from a `WatershedGrid`.
+
+Allocates storage for the density `values` and `labels` arrays (sized to the
+grid), and initializes `summits`, `saddles`, and `basins` as empty collections.
+The fields are intended to be filled in by the watershed algorithm.
+"""
+function WatershedResult(wg::WatershedGrid{N}) where N
+    size = wg.grid.size[1]
+    return WatershedResult{N}(
+        wg,
+        Vector{Float64}(undef, size),
+        zeros(Int, size),
+        Int[],
+        Dict{Tuple{Int,Int}, SaddlePoint}(),
+        Int[]
+    )
+end
+
