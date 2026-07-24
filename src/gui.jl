@@ -47,10 +47,11 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
 
     fig = Figure(size = (950, 950))
 
-    #density image
+    #density image with a colorbar glued to its right
+    top = GridLayout(fig[1, 1])
     got_global = colorrange !== nothing
     scale_note = got_global ? "global colour scale" : "per-section colour scale (global density limits unavailable)"
-    ax = Axis(fig[1, 1], aspect = DataAspect(), title = "density section",
+    ax = Axis(top[1, 1], aspect = DataAspect(), title = "density section",
               subtitle = scale_note, subtitlecolor = got_global ? :black : :red)
     hidedecorations!(ax)
 
@@ -120,7 +121,8 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
     cr = colorrange === nothing ? lift(ρ -> (minimum(ρ), maximum(ρ) + eps()), density) : colorrange
     hm = heatmap!(ax, density; colormap = :jet, colorrange = cr)
 
-    Colorbar(fig[1, 2], hm, label = "density")
+    Colorbar(top[1, 2], hm, label = "density")
+    colsize!(top, 1, Aspect(1, init_grid.size[1] / init_grid.size[2]))
 
     on(_ -> reset_limits!(ax), density)
 
