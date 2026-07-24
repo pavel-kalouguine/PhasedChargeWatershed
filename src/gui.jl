@@ -1,7 +1,7 @@
 # Interactive viewer for a phased density.
 #
-# The window shows a 2D section of the density on top, and a single row of controls
-# underneath: the sampling grid's
+# The window shows a 2D section of the density on top (with a colorbar to its right),
+# and a single row of controls underneath: the sampling grid's
 #   - `direction` : a 2×N integer matrix (which two lattice directions span the cut),
 #   - `origin`    : an N-vector, each component in [0, 1] (where the cut sits),
 #   - `size`      : the (nx, ny) resolution of the output image.
@@ -47,10 +47,11 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
 
     fig = Figure(size = (950, 950))
 
-    #density image
+    #density image with a colorbar glued to its right
+    top = GridLayout(fig[1, 1])
     got_global = colorrange !== nothing
     scale_note = got_global ? "global colour scale" : "per-section colour scale (global density limits unavailable)"
-    ax = Axis(fig[1, 1], aspect = DataAspect(), title = "density section",
+    ax = Axis(top[1, 1], aspect = DataAspect(), title = "density section",
               subtitle = scale_note, subtitlecolor = got_global ? :black : :red)
     hidedecorations!(ax)
 
@@ -118,7 +119,10 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
     density = lift(g -> sample_density(pd.peaks, g), grid)
 
     cr = colorrange === nothing ? lift(ρ -> (minimum(ρ), maximum(ρ) + eps()), density) : colorrange
-    heatmap!(ax, density; colormap = :jet, colorrange = cr)
+    hm = heatmap!(ax, density; colormap = :jet, colorrange = cr)
+
+    Colorbar(top[1, 2], hm, label = "density")
+    colsize!(top, 1, Aspect(1, init_grid.size[1] / init_grid.size[2]))
 
     on(_ -> reset_limits!(ax), density)
 
