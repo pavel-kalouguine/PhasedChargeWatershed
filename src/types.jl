@@ -134,7 +134,7 @@ Fields:
 """
 struct WatershedResult{N}
     wg::WatershedGrid{N}
-    values::Vector{Float64}
+    ρ::Vector{Float64}
     labels::Vector{Int}
     summits::Vector{Int}
     saddles::Dict{Tuple{Int,Int}, SaddlePoint}

@@ -150,3 +150,62 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
     end
     best_candidate
 end
+
+
+function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0, n_attempts::Int=1000) where {N,D}
+    wg=create_watershed_grid(phased_data; density_factor=density_factor, n_attempts=n_attempts)
+    if wg === nothing
+        throw(ArgumentError("Failed to create a valid WatershedGrid after $n_attempts attempts."))
+    end
+    # Pre-allocate the watershed result
+    result=WatershedResult(wg)
+    sample_density!(result.ρ, phased_data.peaks, wg.grid)
+    
+    # Sort the indices of grid sites by decreasing density
+    sorted_indices=sortperm(result.ρ, rev=true)
+    # Pre-allocate arrays to store the labels and densities of the neighbors of each site
+    labeled_neighbors=zeros(Int, length(wg.neighbors)) 
+    density_of_labeled_neighbors=zeros(Float64, length(wg.neighbors)) 
+    d=wg.grid.size[1]
+    for i in sorted_indices
+        # Look for the labeled neighbors
+        more_than_one_neighboring_label=false # Are we at the watershed line?
+        num_labeled_neighbors=0
+        last_found_label=0
+        highest_density_of_labeled_neighbors=-Inf
+        label_with_highest_density=0
+        for shift in wg.neighbors
+            j=mod1(i+shift, d)
+            label=result.labels[j]
+            if label != 0
+                if result.ρ[j] > highest_density_of_labeled_neighbors
+                    highest_density_of_labeled_neighbors=result.ρ[j] # Keep track of the highest density among the labeled neighbors
+                    label_with_highest_density=label
+                end
+                num_labeled_neighbors+=1
+                labeled_neighbors[num_labeled_neighbors]=label
+                density_of_labeled_neighbors[num_labeled_neighbors]=result.ρ[j]
+                if last_found_label != 0 && label != last_found_label
+                    more_than_one_neighboring_label=true
+                end
+                last_found_label=label
+            end
+        end
+        # If there are no labeled neighbors, this is a new basin
+        if num_labeled_neighbors == 0
+            push!(result.summits, i)
+            result.labels[i]=length(result.summits) # Assign a new label to the current site        
+        elseif !more_than_one_neighboring_label
+            # If there is only one neighboring label, assign it to the current site
+            result.labels[i]=last_found_label
+        else
+            # Assign to the site the label of the neighbor with the highest density
+            result.labels[i]=label_with_highest_density
+            # If there are multiple neighboring labels, there is one or more saddle points. 
+            #TODO: handle the case of multiple saddle points. For now, we only consider the first one found.
+        end 
+    end
+    resize!(result.basins, length(result.summits))
+    result.basins.= 1:length(result.summits) # Every summit has its own basin, initially. The basins will be merged in the post-processing stage.
+    result
+end
