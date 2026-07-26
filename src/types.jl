@@ -124,7 +124,7 @@ Represents the result of the watershed segmentation algorithm.
 
 Fields:
 - `wg`: the underlying watershed grid parameters.
-- `values`: the values of the density at the grid sites.
+- `ρ`: the values of the density at the grid sites.
 - `labels`: the labels assigned to grid sites on the pre-processing pass.
 - `summits`: the indices of the highest point for each label.
 - `saddles`: a dictionary of the saddle points indexed by ordered tuple of labels.
