@@ -166,6 +166,7 @@ function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0
     # Pre-allocate arrays to store the labels and densities of the neighbors of each site
     labeled_neighbors=zeros(Int, length(wg.neighbors)) 
     density_of_labeled_neighbors=zeros(Float64, length(wg.neighbors)) 
+    shifts_of_labeled_neighbors=zeros(Int, length(wg.neighbors))
     d=wg.grid.size[1]
     for i in sorted_indices
         # Look for the labeled neighbors
@@ -185,6 +186,7 @@ function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0
                 num_labeled_neighbors+=1
                 labeled_neighbors[num_labeled_neighbors]=label
                 density_of_labeled_neighbors[num_labeled_neighbors]=result.ρ[j]
+                shifts_of_labeled_neighbors[num_labeled_neighbors]=shift
                 if last_found_label != 0 && label != last_found_label
                     more_than_one_neighboring_label=true
                 end
@@ -195,17 +197,54 @@ function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0
         if num_labeled_neighbors == 0
             push!(result.summits, i)
             result.labels[i]=length(result.summits) # Assign a new label to the current site        
-        elseif !more_than_one_neighboring_label
-            # If there is only one neighboring label, assign it to the current site
-            result.labels[i]=last_found_label
-        else
+        else 
             # Assign to the site the label of the neighbor with the highest density
             result.labels[i]=label_with_highest_density
+        end
+        if more_than_one_neighboring_label
             # If there are multiple neighboring labels, there is one or more saddle points. 
-            #TODO: handle the case of multiple saddle points. For now, we only consider the first one found.
+            for n=1:num_labeled_neighbors
+                sp=SaddlePoint(
+                    (result.labels[i], labeled_neighbors[n]),
+                    (i, mod1(i+shifts_of_labeled_neighbors[n], d)),
+                    (result.ρ[i], density_of_labeled_neighbors[n])
+                ) 
+                if !haskey(result.saddles, sp.labels)
+                    result.saddles[sp.labels]=sp
+                end   
+            end
         end 
     end
     resize!(result.basins, length(result.summits))
     result.basins.= 1:length(result.summits) # Every summit has its own basin, initially. The basins will be merged in the post-processing stage.
     result
+end
+
+
+
+"""
+    sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingGrid{N,M}) where {N,M}
+
+Sample the pre-watershed basin labels onto the sites of a given sampling grid.
+
+For each site in `grid`, the corresponding position in the `N`-dimensional unit cell is
+computed, and the nearest site in the cyclic watershed grid is found. The pre-watershed
+label assigned to that watershed site (as computed by `pre_watershed`) is then recorded.
+
+Returns an `Array{Int,M}` of size `grid.size`, where each element is the integer basin
+label of the watershed grid site nearest to the corresponding sampling point of `grid`.
+"""
+function sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingGrid{N,M})::Array{Int,M} where {N,M}
+    d=result.wg.grid.size[1]
+    sampled_labels=zeros(Int, grid.size...)
+    # Loop over the sites of the sampling grid
+    for ind in CartesianIndices(grid.size)
+        # Position of the site in the `N`-dimensional unit cell
+        x = mod.(grid.direction' * SVector((ind.I.-1)./grid.size) + grid.origin, 1) 
+        v=round.(Int, result.wg.L * x) # Nearest site position in the `N`-dimensional basis of the watershed grid
+        #TODO: Find the actual neares site
+        i = mod1(v'*result.wg.basis_indices, d) # Index of the nearest site in the cyclic watershed grid
+        sampled_labels[ind] = result.labels[i]
+    end
+    sampled_labels
 end
