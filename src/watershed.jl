@@ -17,7 +17,7 @@ function quadratic_moment(peaks::Vector{PhasedPeak{N}}) where N
     for peak in peaks
         k = peak.k
         f = peak.f
-        Q += abs2(f) * (k * k')
+        Q .+= abs2(f) * (k * k')
     end
     total_intensity = sum(abs2.(getfield.(peaks, :f)))
     if total_intensity == 0.0
@@ -174,6 +174,7 @@ Throws an `ArgumentError` if no valid `WatershedGrid` could be constructed withi
 `n_attempts` attempts.
 """
 function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0, n_attempts::Int=1000) where {N,D}
+    n_attempts >= 1 || throw(ArgumentError("n_attempts must be >= 1"))
     wg=create_watershed_grid(phased_data; density_factor=density_factor, n_attempts=n_attempts)
     if wg === nothing
         throw(ArgumentError("Failed to create a valid WatershedGrid after $n_attempts attempts."))
@@ -264,7 +265,7 @@ function sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingG
         # Position of the site in the `N`-dimensional unit cell
         x = mod.(grid.direction' * SVector((ind.I.-1)./grid.size) + grid.origin, 1) 
         v=round.(Int, result.wg.L * x) # Nearest site position in the `N`-dimensional basis of the watershed grid
-        #TODO: Find the actual neares site
+        #TODO: Find the actual nearest site
         i = mod1(v'*result.wg.basis_indices, d) # Index of the nearest site in the cyclic watershed grid
         sampled_labels[ind] = result.labels[i]
     end

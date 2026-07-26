@@ -85,7 +85,7 @@ struct WatershedGrid{N}
     neighbors::Vector{Int}
     basis_indices::SVector{N,Int}
     L::SMatrix{N,N,Int}
-    Q::Symmetric{Float64}
+    Q::Symmetric{Float64, Matrix{Float64}}
 end
 
 """
