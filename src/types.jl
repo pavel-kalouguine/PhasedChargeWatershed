@@ -153,11 +153,11 @@ grid), and initializes `summits`, `saddles`, and `basins` as empty collections.
 The fields are intended to be filled in by the watershed algorithm.
 """
 function WatershedResult(wg::WatershedGrid{N}) where N
-    size = wg.grid.size[1]
+    n_sites = wg.grid.size[1]
     return WatershedResult{N}(
         wg,
-        Vector{Float64}(undef, size),
-        zeros(Int, size),
+        Vector{Float64}(undef, n_sites),
+        zeros(Int, n_sites)
         Int[],
         Dict{Tuple{Int,Int}, SaddlePoint}(),
         Int[]
