@@ -17,7 +17,7 @@ function quadratic_moment(peaks::Vector{PhasedPeak{N}}) where N
     for peak in peaks
         k = peak.k
         f = peak.f
-        Q += abs2(f) * (k * k')
+        Q .+= abs2(f) * (k * k')
     end
     total_intensity = sum(abs2.(getfield.(peaks, :f)))
     if total_intensity == 0.0
@@ -28,10 +28,10 @@ end
 
 
 """
-    quadratic_moment_on_neighbors(wg::WatershedGrid{N}, Q::AbstractMatrix) where N
+    quadratic_moment_on_neighbors(wg::WatershedGrid{N}) where N
 
 Compute, for each neighbor of the origin in the watershed grid `wg`, the value of the 
-quadratic form `Q` evaluated at the corresponding fractional lattice site.
+quadratic form `wg.Q` evaluated at the corresponding fractional lattice site.
 
 The watershed grid forms a cyclic lattice, which can be indexed by a single integer.
 The position of the neighbor indexed by `shift` is a rational vector `x` computed as
@@ -39,15 +39,13 @@ The position of the neighbor indexed by `shift` is a rational vector `x` compute
 subtracting the nearest integer (`round.(x)`), where `direction` is the
 grid's direction matrix and `d` is the grid size along its first axis (the actual 
 computation is performed with floating point numbers to avoid integer overflow).
-The returned value for that neighbor is `x' * Q * x`.
-
-Throws an `ArgumentError` if `Q` is not an `N x N` matrix.
+The returned value for that neighbor is `x' * wg.Q * x`.
 
 Returns a `Vector{Float64}` with one entry per neighbor in `wg.neighbors`.
 """
-function quadratic_moment_on_neighbors(wg::WatershedGrid{N}, Q::AbstractMatrix) where N
-    if size(Q) != (N, N)
-        throw(ArgumentError("Q must be an $N x $N matrix"))
+function quadratic_moment_on_neighbors(wg::WatershedGrid{N}) where N
+    if size(wg.Q) != (N, N)
+        throw(ArgumentError("Quadratic moment must be an $N x $N matrix"))
     end
     grid = wg.grid
     direction = grid.direction
@@ -59,7 +57,7 @@ function quadratic_moment_on_neighbors(wg::WatershedGrid{N}, Q::AbstractMatrix) 
         shift=neighbors[n]
         x=dir*shift/d
         x=x-round.(x)
-        vals[n]=x' * Q * x
+        vals[n]=x' * wg.Q * x
     end
     return vals
 end
@@ -107,14 +105,13 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
     # TODO: find the reasonable value of the minimal_scaling_factor and document the implications of this choice. 
     minimal_scaling_factor=20.0 # A heuristic scaling factor to make the grid dense enough to capture the density variations
     scaling_factor=density_factor^(1/N)*minimal_scaling_factor
-    i=0
+    sqrtQ=sqrt(Q) # Q does not change across attempts, so its square root is computed once
     best_candidate=nothing
     smallest_val=Inf
-    while true
-        i+=1
+    for i in 1:n_attempts
         R = svd(randn(N, N)).U # Random orthogonal matrix
         B=R*B0 # Rotated basis
-        L=round.(Int, scaling_factor*(B\sqrt(Q)))
+        L=round.(Int, scaling_factor*(B\sqrtQ))
         s=nothing
         try
             # TODO: consider using BigInt to avoid integer overflow, but this will be slower.
@@ -132,22 +129,145 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
         dir=s.V[:, end]
         direction = SMatrix{1, N, Int}(dir')
         grid=SamplingGrid{N,1}(direction, zero(SVector{N,Float64}), (d,))
+        basis_indices=SVector{N,Int}(mod.(s.U[end,:], d))
         neighbors=Int[]
         for u in nbs
-            shift=s.U*u
-            push!(neighbors, mod(shift[end], d))
+            shift=basis_indices'*u
+            push!(neighbors, mod(shift, d))
         end
-        candidate=WatershedGrid(grid, neighbors)
-        vals=quadratic_moment_on_neighbors(candidate, Q)
+        candidate=WatershedGrid(grid, neighbors, basis_indices, SMatrix{N,N,Int}(L), Q)
+        vals=quadratic_moment_on_neighbors(candidate)
         max_val=maximum(vals)
         if max_val < smallest_val
             smallest_val=max_val
             best_candidate=candidate
         end
-        if i>=n_attempts
-            break
-        end
-        
     end
     best_candidate
+end
+
+
+"""
+    pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0, n_attempts::Int=1000) where {N,D}
+
+Perform the pre-watershed segmentation of the density sampled from phased peak data.
+
+Constructs an optimal `WatershedGrid` via `create_watershed_grid`, samples the electron
+density onto it, and then runs a watershed algorithm by processing grid sites in
+decreasing order of density. Each site is assigned a basin label according to its
+highest-density labeled neighbor; sites with no labeled neighbors seed new basins and
+are recorded as summits. Saddle points between distinct basins are detected and stored.
+Initially, every summit forms its own basin; basins are to be merged in a subsequent
+post-processing step.
+
+# Arguments
+- `phased_data`: the phased peak data used to construct the watershed grid and sample
+  the density.
+- `density_factor`: passed to `create_watershed_grid`; must be `>= 1.0` and controls
+  the density of grid sites relative to a heuristic minimum.
+- `n_attempts`: number of random candidate lattices tried by `create_watershed_grid`.
+
+Returns a `WatershedResult` containing the sampled density, basin labels, summit
+indices, saddle points, and basin assignment array.
+
+Throws an `ArgumentError` if no valid `WatershedGrid` could be constructed within
+`n_attempts` attempts.
+"""
+function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0, n_attempts::Int=1000) where {N,D}
+    n_attempts >= 1 || throw(ArgumentError("n_attempts must be >= 1"))
+    wg=create_watershed_grid(phased_data; density_factor=density_factor, n_attempts=n_attempts)
+    if wg === nothing
+        throw(ArgumentError("Failed to create a valid WatershedGrid after $n_attempts attempts."))
+    end
+    # Pre-allocate the watershed result
+    result=WatershedResult(wg)
+    sample_density!(result.ρ, phased_data.peaks, wg.grid)
+    
+    # Sort the indices of grid sites by decreasing density
+    sorted_indices=sortperm(result.ρ, rev=true)
+    # Pre-allocate arrays to store the labels and densities of the neighbors of each site
+    labeled_neighbors=zeros(Int, length(wg.neighbors)) 
+    density_of_labeled_neighbors=zeros(Float64, length(wg.neighbors)) 
+    shifts_of_labeled_neighbors=zeros(Int, length(wg.neighbors))
+    d=wg.grid.size[1]
+    for i in sorted_indices
+        # Look for the labeled neighbors
+        more_than_one_neighboring_label=false # Are we at the watershed line?
+        num_labeled_neighbors=0
+        last_found_label=0
+        highest_density_of_labeled_neighbors=-Inf
+        label_with_highest_density=0
+        for shift in wg.neighbors
+            j=mod1(i+shift, d)
+            label=result.labels[j]
+            if label != 0
+                if result.ρ[j] > highest_density_of_labeled_neighbors
+                    highest_density_of_labeled_neighbors=result.ρ[j] # Keep track of the highest density among the labeled neighbors
+                    label_with_highest_density=label
+                end
+                num_labeled_neighbors+=1
+                labeled_neighbors[num_labeled_neighbors]=label
+                density_of_labeled_neighbors[num_labeled_neighbors]=result.ρ[j]
+                shifts_of_labeled_neighbors[num_labeled_neighbors]=shift
+                if last_found_label != 0 && label != last_found_label
+                    more_than_one_neighboring_label=true
+                end
+                last_found_label=label
+            end
+        end
+        # If there are no labeled neighbors, this is a new basin
+        if num_labeled_neighbors == 0
+            push!(result.summits, i)
+            result.labels[i]=length(result.summits) # Assign a new label to the current site        
+        else 
+            # Assign to the site the label of the neighbor with the highest density
+            result.labels[i]=label_with_highest_density
+        end
+        if more_than_one_neighboring_label
+            # If there are multiple neighboring labels, there is one or more saddle points. 
+            for n=1:num_labeled_neighbors
+                labeled_neighbors[n] == result.labels[i] && continue # Skip neighbors sharing the site's own label; not a saddle
+                sp=SaddlePoint(
+                    (result.labels[i], labeled_neighbors[n]),
+                    (i, mod1(i+shifts_of_labeled_neighbors[n], d)),
+                    (result.ρ[i], density_of_labeled_neighbors[n])
+                ) 
+                if !haskey(result.saddles, sp.labels)
+                    result.saddles[sp.labels]=sp
+                end   
+            end
+        end 
+    end
+    resize!(result.basins, length(result.summits))
+    result.basins.= 1:length(result.summits) # Every summit has its own basin, initially. The basins will be merged in the post-processing stage.
+    result
+end
+
+
+
+"""
+    sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingGrid{N,M}) where {N,M}
+
+Sample the pre-watershed basin labels onto the sites of a given sampling grid.
+
+For each site in `grid`, the corresponding position in the `N`-dimensional unit cell is
+computed, and a corresponding site index in the cyclic watershed grid is estimated by
+rounding in the watershed lattice basis (see the TODO in the implementation).
+
+Returns an `Array{Int,M}` of size `grid.size`, where each element is the integer basin
+label of the watershed grid site nearest to the corresponding sampling point of `grid`.
+"""
+function sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingGrid{N,M})::Array{Int,M} where {N,M}
+    d=result.wg.grid.size[1]
+    sampled_labels=zeros(Int, grid.size...)
+    # Loop over the sites of the sampling grid
+    for ind in CartesianIndices(grid.size)
+        # Position of the site in the `N`-dimensional unit cell
+        x = mod.(grid.direction' * SVector((ind.I.-1)./grid.size) + grid.origin, 1) 
+        v=round.(Int, result.wg.L * x) # Nearest site position in the `N`-dimensional basis of the watershed grid
+        #TODO: Find the actual nearest site
+        i = mod1(v'*result.wg.basis_indices, d) # Index of the nearest site in the cyclic watershed grid
+        sampled_labels[ind] = result.labels[i]
+    end
+    sampled_labels
 end
