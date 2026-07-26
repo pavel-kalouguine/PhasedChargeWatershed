@@ -250,8 +250,8 @@ end
 Sample the pre-watershed basin labels onto the sites of a given sampling grid.
 
 For each site in `grid`, the corresponding position in the `N`-dimensional unit cell is
-computed, and the nearest site in the cyclic watershed grid is found. The pre-watershed
-label assigned to that watershed site (as computed by `pre_watershed`) is then recorded.
+computed, and a corresponding site index in the cyclic watershed grid is estimated by
+rounding in the watershed lattice basis (see the TODO in the implementation).
 
 Returns an `Array{Int,M}` of size `grid.size`, where each element is the integer basin
 label of the watershed grid site nearest to the corresponding sampling point of `grid`.
