@@ -6,7 +6,7 @@ import PhasedChargeWatershed: load_data, SamplingGrid, sample_density, create_wa
 
 
 
-filepath = joinpath(@__DIR__, "data", "synthetic.json")
+filepath = joinpath(@__DIR__, "data", "synthetic2.json")
 phased_data = load_data(filepath)
 
 result=pre_watershed(phased_data, density_factor=10.0)
