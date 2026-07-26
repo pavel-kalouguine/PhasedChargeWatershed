@@ -105,14 +105,13 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
     # TODO: find the reasonable value of the minimal_scaling_factor and document the implications of this choice. 
     minimal_scaling_factor=20.0 # A heuristic scaling factor to make the grid dense enough to capture the density variations
     scaling_factor=density_factor^(1/N)*minimal_scaling_factor
-    i=0
+    sqrtQ=sqrt(Q) # Q does not change across attempts, so its square root is computed once
     best_candidate=nothing
     smallest_val=Inf
-    while true
-        i+=1
+    for i in 1:n_attempts
         R = svd(randn(N, N)).U # Random orthogonal matrix
         B=R*B0 # Rotated basis
-        L=round.(Int, scaling_factor*(B\sqrt(Q)))
+        L=round.(Int, scaling_factor*(B\sqrtQ))
         s=nothing
         try
             # TODO: consider using BigInt to avoid integer overflow, but this will be slower.
@@ -143,15 +142,37 @@ function create_watershed_grid(phased_data::PhasedData{N,D}; density_factor::Flo
             smallest_val=max_val
             best_candidate=candidate
         end
-        if i>=n_attempts
-            break
-        end
-        
     end
     best_candidate
 end
 
 
+"""
+    pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0, n_attempts::Int=1000) where {N,D}
+
+Perform the pre-watershed segmentation of the density sampled from phased peak data.
+
+Constructs an optimal `WatershedGrid` via `create_watershed_grid`, samples the electron
+density onto it, and then runs a watershed algorithm by processing grid sites in
+decreasing order of density. Each site is assigned a basin label according to its
+highest-density labeled neighbor; sites with no labeled neighbors seed new basins and
+are recorded as summits. Saddle points between distinct basins are detected and stored.
+Initially, every summit forms its own basin; basins are to be merged in a subsequent
+post-processing step.
+
+# Arguments
+- `phased_data`: the phased peak data used to construct the watershed grid and sample
+  the density.
+- `density_factor`: passed to `create_watershed_grid`; must be `>= 1.0` and controls
+  the density of grid sites relative to a heuristic minimum.
+- `n_attempts`: number of random candidate lattices tried by `create_watershed_grid`.
+
+Returns a `WatershedResult` containing the sampled density, basin labels, summit
+indices, saddle points, and basin assignment array.
+
+Throws an `ArgumentError` if no valid `WatershedGrid` could be constructed within
+`n_attempts` attempts.
+"""
 function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0, n_attempts::Int=1000) where {N,D}
     wg=create_watershed_grid(phased_data; density_factor=density_factor, n_attempts=n_attempts)
     if wg === nothing
@@ -204,6 +225,7 @@ function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0
         if more_than_one_neighboring_label
             # If there are multiple neighboring labels, there is one or more saddle points. 
             for n=1:num_labeled_neighbors
+                labeled_neighbors[n] == result.labels[i] && continue # Skip neighbors sharing the site's own label; not a saddle
                 sp=SaddlePoint(
                     (result.labels[i], labeled_neighbors[n]),
                     (i, mod1(i+shifts_of_labeled_neighbors[n], d)),

@@ -6,9 +6,10 @@ import PhasedChargeWatershed: load_data, SamplingGrid, sample_density, create_wa
 
 
 
-filepath = joinpath(@__DIR__, "data", "synthetic_pg.json")
+filepath = joinpath(@__DIR__, "data", "synthetic.json")
 phased_data = load_data(filepath)
 
 result=pre_watershed(phased_data, density_factor=10.0)
 sg=SamplingGrid{2,2}(SMatrix{2,2,Int}([1 0; 0 1]), SVector{2,Float64}(0.0, 0.0), (1024,1024))
 sampled_labels=sample_pre_watershed_labels(result, sg)
+basin_summit_heights=[result.ρ[result.summits[sl]] for sl in sampled_labels]
