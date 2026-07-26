@@ -157,7 +157,7 @@ function WatershedResult(wg::WatershedGrid{N}) where N
     return WatershedResult{N}(
         wg,
         Vector{Float64}(undef, n_sites),
-        zeros(Int, n_sites)
+        zeros(Int, n_sites),
         Int[],
         Dict{Tuple{Int,Int}, SaddlePoint}(),
         Int[]
