@@ -30,4 +30,6 @@ JuliaLocalPreferences.toml
 # Visual Studio Code preferences
 .vscode
 
+# Developer scratchpads and experimental notebooks
+scratch/
 
