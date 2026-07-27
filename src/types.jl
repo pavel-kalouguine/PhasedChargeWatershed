@@ -118,11 +118,16 @@ end
 
 
 """
-        WatershedResult{N}
+        WatershedResult{N, D}
 
 Represents the result of the watershed segmentation algorithm.
 
+The phased data the segmentation was computed from is kept alongside the result, so
+that the density and the basins can never be taken from two unrelated sources. It is
+negligible in size compared to the sampled density.
+
 Fields:
+- `phased_data`: the phased data the segmentation was computed from.
 - `wg`: the underlying watershed grid parameters.
 - `ρ`: the values of the density at the grid sites.
 - `labels`: the labels assigned to grid sites on the pre-processing pass.
@@ -132,7 +137,8 @@ Fields:
     Each basin may comprise sites with several labels; the basin index equals
     the smallest label of the sites composing the basin.
 """
-struct WatershedResult{N}
+struct WatershedResult{N,D}
+    phased_data::PhasedData{N,D}
     wg::WatershedGrid{N}
     ρ::Vector{Float64}
     labels::Vector{Int}
@@ -144,17 +150,18 @@ end
 
 
 """
-    WatershedResult(wg::WatershedGrid{N}) where N
+    WatershedResult(phased_data::PhasedData{N,D}, wg::WatershedGrid{N}) where {N,D}
 
-Construct an empty `WatershedResult{N}` from a `WatershedGrid`.
+Construct an empty `WatershedResult{N,D}` from the phased data and a `WatershedGrid`.
 
 Allocates storage for the density `values` and `labels` arrays (sized to the
 grid), and initializes `summits`, `saddles`, and `basins` as empty collections.
 The fields are intended to be filled in by the watershed algorithm.
 """
-function WatershedResult(wg::WatershedGrid{N}) where N
+function WatershedResult(phased_data::PhasedData{N,D}, wg::WatershedGrid{N}) where {N,D}
     n_sites = wg.grid.size[1]
-    return WatershedResult{N}(
+    return WatershedResult{N,D}(
+        phased_data,
         wg,
         Vector{Float64}(undef, n_sites),
         zeros(Int, n_sites),

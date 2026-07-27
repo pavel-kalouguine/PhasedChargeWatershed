@@ -167,8 +167,8 @@ post-processing step.
   the density of grid sites relative to a heuristic minimum.
 - `n_attempts`: number of random candidate lattices tried by `create_watershed_grid`.
 
-Returns a `WatershedResult` containing the sampled density, basin labels, summit
-indices, saddle points, and basin assignment array.
+Returns a `WatershedResult` containing the phased data itself, the sampled density,
+basin labels, summit indices, saddle points, and basin assignment array.
 
 Throws an `ArgumentError` if no valid `WatershedGrid` could be constructed within
 `n_attempts` attempts.
@@ -180,7 +180,7 @@ function pre_watershed(phased_data::PhasedData{N,D}; density_factor::Float64=1.0
         throw(ArgumentError("Failed to create a valid WatershedGrid after $n_attempts attempts."))
     end
     # Pre-allocate the watershed result
-    result=WatershedResult(wg)
+    result=WatershedResult(phased_data, wg)
     sample_density!(result.ρ, phased_data.peaks, wg.grid)
     
     # Sort the indices of grid sites by decreasing density
