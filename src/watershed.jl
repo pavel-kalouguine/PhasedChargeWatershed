@@ -320,7 +320,9 @@ function sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingG
         x = mod.(grid.direction' * SVector((ind.I.-1)./grid.size) + grid.origin, 1) 
         v=round.(Int, result.wg.L * x) # Nearest site position in the `N`-dimensional basis of the watershed grid
         #TODO: Find the actual nearest site
-        i = mod1(v'*result.wg.basis_indices, d) # Index of the nearest site in the cyclic watershed grid
+        # Index of the nearest site in the cyclic watershed grid. The shift given by the
+        # basis indices is counted from site 1, which sits at the origin.
+        i = mod(v'*result.wg.basis_indices, d) + 1
         sampled_labels[ind] = result.labels[i]
     end
     sampled_labels
