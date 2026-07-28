@@ -1,33 +1,39 @@
 # Command-line launcher for the interactive density viewer.
 #
-#   julia --project viewer.jl path/to/data.json [path/to/results.jld2]
+#   julia --project viewer.jl path/to/data.json
+#   julia --project viewer.jl path/to/results.jld2
 #
-# The optional second argument is a file written by prewatershed.jl; when it is given,
-# the boundaries between the watershed basins are drawn as white lines over the density.
+# What is drawn follows from the file that is given. A .json holds phased data only, so
+# the density alone is shown; a .jld2 written by prewatershed.jl holds a watershed result
+# as well, and the boundaries between the basins are drawn as white lines over the
+# density. A result carries the phased data it was computed from, so the density and the
+# basins on screen always belong together.
 #
 # Opens one window. The "Add a view" button clones the current settings into a new
 # window. Windows can be closed independently; closing the last one ends the program.
 
-using GLMakie, JLD2
-import PhasedChargeWatershed: load_data, build_viewer, global_density_limits
+using GLMakie
+import PhasedChargeWatershed: load_data, load_result, build_viewer, global_density_limits
 
-if !(1 <= length(ARGS) <= 2)
-    error("usage: julia --project viewer.jl <data.json> [results.jld2]")
+length(ARGS) == 1 || error("usage: julia --project viewer.jl <data.json | results.jld2>")
+input_path = ARGS[1]
+isfile(input_path) || error("input file not found: $input_path")
+
+extension = lowercase(splitext(input_path)[2])
+if extension == ".json"
+    pd = load_data(input_path)
+    result = nothing
+    climits = global_density_limits(pd)
+elseif extension == ".jld2"
+    result = load_result(input_path)
+    pd = result.phased_data
+    # The density over the whole cell has already been sampled, so the global colour
+    # limits are read off the result instead of building another watershed grid.
+    climits = global_density_limits(result)
+else
+    error("do not know what to do with \"$extension\": " *
+          "expected .json (phased data) or .jld2 (watershed results)")
 end
-pd = load_data(ARGS[1])
-
-result = nothing
-if length(ARGS) == 2
-    isfile(ARGS[2]) || error("results file not found: $(ARGS[2])")
-    result = load_object(ARGS[2])
-
-    if result.phased_data.peaks != pd.peaks
-        @warn "the results were computed from different phased data than $(ARGS[1]); " *
-              "the basin boundaries will not match the density"
-    end
-end
-
-climits = result === nothing ? global_density_limits(pd) : global_density_limits(result)
 
 # The set of open windows; the program runs until the last one is closed
 screens = Set{GLMakie.Screen}()

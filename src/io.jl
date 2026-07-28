@@ -33,3 +33,32 @@ function load_data(file_path::String)::PhasedData
 
     PhasedData(G, md, peaks)
 end
+# The name under which a watershed result is stored inside a JLD2 file. Keeping it in
+# one place makes `save_result` and `load_result` agree by construction.
+const RESULT_KEY = "result"
+
+"""
+    save_result(file_path::String, result::WatershedResult)
+
+Write `result` to a JLD2 file, under the key [`RESULT_KEY`](@ref).
+"""
+function save_result(file_path::String, result::WatershedResult)
+    jldsave(file_path; Symbol(RESULT_KEY) => result)
+    return nothing
+end
+
+"""
+    load_result(file_path::String) -> WatershedResult
+
+Read back a result written by [`save_result`](@ref). The named entry is requested
+explicitly, so the file may later hold other entries as well, and the object read is
+checked to be a `WatershedResult`: a file holding something else, or one written by an
+incompatible version of the code, is reported here instead of failing somewhere later.
+"""
+function load_result(file_path::String)::WatershedResult
+    result = load(file_path, RESULT_KEY)
+    result isa WatershedResult ||
+        error("$file_path does not hold a WatershedResult under the key \"$RESULT_KEY\"" *
+              " (found a $(typeof(result)))")
+    return result
+end

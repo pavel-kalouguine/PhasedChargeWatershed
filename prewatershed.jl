@@ -13,12 +13,10 @@
 # The segmentation is the slow part, so the script is meant to be run once per set of
 # parameters, the result being reused later.
 #
-# The saved result is read back with
-#   using JLD2
-#   result = load("output.jld2", "result")
+# The saved result is read back with `PhasedChargeWatershed.load_result`, and can be
+# opened directly by the viewer: `julia --project viewer.jl output.jld2`.
 
-using JLD2
-import PhasedChargeWatershed: load_data, pre_watershed
+import PhasedChargeWatershed: load_data, pre_watershed, save_result
 
 if !(2 <= length(ARGS) <= 4)
     error("usage: julia --project prewatershed.jl <input.json> <output.jld2> [density_factor] [n_attempts]")
@@ -47,5 +45,5 @@ result = pre_watershed(phased_data; density_factor = density_factor, n_attempts 
 println("got $(length(result.summits)) basins and $(length(result.saddles)) saddle points",
         " on a grid of $(result.wg.grid.size[1]) sites")
 
-jldsave(output_path; result = result)
+save_result(output_path, result)
 println("saved the result to $output_path")
