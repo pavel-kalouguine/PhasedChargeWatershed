@@ -6,8 +6,8 @@
 # What is drawn follows from the file that is given. A .json holds phased data only, so
 # the density alone is shown; a .jld2 written by prewatershed.jl holds a watershed result
 # as well, and the boundaries between the basins are drawn as white lines over the
-# density. A result carries the phased data it was computed from, so the density and the
-# basins on screen always belong together.
+# density, with a row of controls to postprocess them. A result carries the phased data it
+# was computed from, so the density and the basins on screen always belong together.
 #
 # Opens one window. The "Add a view" button clones the current settings into a new
 # window. Windows can be closed independently; closing the last one ends the program.
@@ -25,9 +25,10 @@ if extension == ".json"
     result = nothing
     climits = global_density_limits(pd)
 elseif extension == ".jld2"
-    result = load_result(input_path)
-    pd = result.phased_data
-    climits = global_density_limits(result)
+    watershed = load_result(input_path)
+    pd = watershed.phased_data
+    climits = global_density_limits(watershed)
+    result = Observable(watershed)
 else
     error("do not know what to do with \"$extension\": " *
           "expected .json (phased data) or .jld2 (watershed results)")

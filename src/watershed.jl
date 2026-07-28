@@ -246,6 +246,60 @@ end
 
 
 """
+    basin_root(parent::Vector{Int}, i::Int)
+
+Index of the basin the pre-basin `i` was fused into, following `parent` up to a fixed point.
+"""
+function basin_root(parent::Vector{Int}, i::Int)
+    while parent[i] != i
+        i = parent[i]
+    end
+    return i
+end
+
+
+"""
+    fuse_basins!(parent::Vector{Int}, i::Int, j::Int)
+
+Fuse the basins of the pre-basins `i` and `j`, keeping the smaller of the two indices.
+"""
+function fuse_basins!(parent::Vector{Int}, i::Int, j::Int)
+    a, b = minmax(basin_root(parent, i), basin_root(parent, j))
+    parent[b] = a
+    return nothing
+end
+
+
+"""
+    update_basins!(result::WatershedResult, summit_percent::Real, saddle_ratio::Real, reference::Function)
+
+Recompute `result.basins` in place.
+
+Pre-basins are fused when the saddle point between them reaches `saddle_ratio` of their
+summits, compared as `reference` says (`min`, `max`, or the average); the fused group takes
+the smallest of its indices, which is also its highest summit. A group whose summit stays
+below `summit_percent` of the global density maximum is left unlabeled, its elements set to 0.
+"""
+function update_basins!(result::WatershedResult, summit_percent::Real, saddle_ratio::Real,
+                        reference::Function)
+    summit_ρ = result.ρ[result.summits]
+    parent = collect(eachindex(summit_ρ))
+    for sp in values(result.saddles)
+        a, b = sp.labels
+        if minimum(sp.values) >= saddle_ratio * reference(summit_ρ[a], summit_ρ[b])
+            fuse_basins!(parent, a, b)
+        end
+    end
+    cutoff = summit_percent / 100 * maximum(result.ρ)
+    for i in eachindex(summit_ρ)
+        r = basin_root(parent, i)
+        result.basins[i] = summit_ρ[r] < cutoff ? 0 : r
+    end
+    return result
+end
+
+
+"""
     sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingGrid{N,M}) where {N,M}
 
 Sample the pre-watershed basin labels onto the sites of a given sampling grid.

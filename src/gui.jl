@@ -9,6 +9,11 @@
 # The section is (re)computed when the "Apply" button is pressed, so heavy data are
 # recomputed only on demand. The image aspect follows the requested size.
 #
+# When a watershed result is given, its basin boundaries are drawn over the density and a
+# second row of controls postprocesses the basins. These controls do not resample the
+# section: they only rewrite which pre-basin belongs to which basin, so the boundaries
+# follow the sliders as they are dragged.
+#
 # The code uses only the Makie API; the launcher picks the backend (GLMakie).
 
 """
@@ -89,8 +94,10 @@ current sampling grid, so the caller can open another window; `init` is a `Sampl
 the controls start from (used to clone a view). On open it shows `init`, or the default
 section (first two axes, origin 0, 1024×1024) when `init` is not given. `colorrange`, if
 given, fixes the heatmap colour range for every section (a shared/global scale);
-otherwise each section is scaled to its own extrema. `result`, if given, is a
-`WatershedResult` whose basin boundaries are drawn as white lines on top of the density.
+otherwise each section is scaled to its own extrema. `result`, if given, is an
+`Observable` holding a `WatershedResult`: its basin boundaries are drawn as white lines
+on top of the density, and a second row of controls postprocesses the basins. Several
+windows can share the same observable, and then they all follow the same postprocessing.
 """
 function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing, colorrange = nothing, result = nothing) where {N}
     init_grid = init === nothing ?
@@ -182,12 +189,33 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
     colsize!(top, 1, Aspect(1, init_grid.size[1] / init_grid.size[2]))
 
     if result !== nothing
-        prelabels = lift(g -> sample_pre_watershed_labels(result, g), grid)
-        boundaries = lift(prelabels) do pl
-            basin_boundaries(map(l -> result.basins[l], pl), boundary_width(size(pl)))
+        prelabels = lift(g -> sample_pre_watershed_labels(result[], g), grid)
+        boundaries = lift(prelabels, result) do pl, r
+            basin_boundaries(map(l -> r.basins[l], pl), boundary_width(size(pl)))
         end
         heatmap!(ax, boundaries; colormap = [:white, :white], colorrange = (0, 1),
                  nan_color = :transparent)
+
+        #postprocessing of the basins
+        post = GridLayout(fig[3, 1], tellheight = true)
+        summit = Slider(post[1, 2]; range = 0:0.1:100, startvalue = 0, width = 260)
+        Label(post[1, 1], lift(summit.value) do v
+                  "unlabel basins whose summit is below $(round(v; digits = 1))% of the maximum"
+              end, halign = :right)
+        ratio = Slider(post[2, 2]; range = 0:0.005:1, startvalue = 1, width = 260)
+        Label(post[2, 1], lift(ratio.value) do v
+                  "fuse basins whose saddle is above $(round(100v; digits = 1))% of their summits"
+              end, halign = :right)
+        references = [("average", ((a, b) -> (a + b) / 2)), ("minimum", min), ("maximum", max)]
+        reference = Menu(post[3, 2]; options = references, default = "average", width = 260)
+        Label(post[3, 1], "summits compared as their", halign = :right)
+
+        for signal in (summit.value, ratio.value, reference.selection)
+            on(signal) do _
+                update_basins!(result[], summit.value[], ratio.value[], reference.selection[])
+                notify(result)
+            end
+        end
     end
 
     on(_ -> reset_limits!(ax), density)
