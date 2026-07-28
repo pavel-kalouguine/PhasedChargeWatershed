@@ -27,8 +27,6 @@ if extension == ".json"
 elseif extension == ".jld2"
     result = load_result(input_path)
     pd = result.phased_data
-    # The density over the whole cell has already been sampled, so the global colour
-    # limits are read off the result instead of building another watershed grid.
     climits = global_density_limits(result)
 else
     error("do not know what to do with \"$extension\": " *

@@ -43,17 +43,19 @@ end
     basin_boundaries(labels::Array{Int,2}) -> Matrix{Float32}
 
 Mark the sites lying on a boundary between two different basins. A site is on a boundary
-when the site to its right or the one below it carries a different label. Sites inside a
-basin get `NaN`, so that the result can be drawn as a heatmap whose `nan_color` is
-transparent, leaving the density below it visible.
+when the site to its right or the one below it carries a different label. The cut is
+periodic by design, so the neighbours are taken modulo the size of the image and the
+boundaries crossing the seam are found as well. Sites inside a basin get `NaN`, so that
+the result can be drawn as a heatmap whose `nan_color` is transparent, leaving the
+density below it visible.
 """
 function basin_boundaries(labels::Array{Int,2})
     nx, ny = size(labels)
     mask = fill(NaN32, nx, ny)
     for i in 1:nx, j in 1:ny
         l = labels[i, j]
-        right_differs = i < nx && labels[i+1, j] != l
-        below_differs = j < ny && labels[i, j+1] != l
+        right_differs = labels[mod1(i + 1, nx), j] != l
+        below_differs = labels[i, mod1(j + 1, ny)] != l
         if right_differs || below_differs
             mask[i, j] = 1.0f0
         end
@@ -145,9 +147,14 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
         SamplingGrid(d, o, s)
     end
 
-    #recompute only when Apply is pressed, "Add a view" clones the current section
+    # Recompute only when Apply is pressed, and only if the controls really describe
+    # another cut: pressing Apply again with the same settings would otherwise redo the
+    # whole sampling and throw the identical result away.
     grid = Observable(current_grid())
-    on(_ -> (grid[] = current_grid()), apply.clicks)
+    on(apply.clicks) do _
+        new_grid = current_grid()
+        new_grid == grid[] || (grid[] = new_grid)
+    end
     on(_ -> on_add_view(grid[]), addview.clicks)
 
     density = lift(g -> sample_density(pd.peaks, g), grid)

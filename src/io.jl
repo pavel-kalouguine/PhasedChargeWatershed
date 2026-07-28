@@ -33,8 +33,7 @@ function load_data(file_path::String)::PhasedData
 
     PhasedData(G, md, peaks)
 end
-# The name under which a watershed result is stored inside a JLD2 file. Keeping it in
-# one place makes `save_result` and `load_result` agree by construction.
+
 const RESULT_KEY = "result"
 
 """
