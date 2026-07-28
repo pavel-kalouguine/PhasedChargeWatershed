@@ -40,28 +40,44 @@ function global_density_limits(result::WatershedResult)
 end
 
 """
-    basin_boundaries(labels::Array{Int,2}) -> Matrix{Float32}
+    basin_boundaries(labels::Array{Int,2}, width::Int = 2) -> Matrix{Float32}
 
-Mark the sites lying on a boundary between two different basins. A site is on a boundary
-when the site to its right or the one below it carries a different label. The cut is
-periodic by design, so the neighbours are taken modulo the size of the image and the
-boundaries crossing the seam are found as well. Sites inside a basin get `NaN`, so that
-the result can be drawn as a heatmap whose `nan_color` is transparent, leaving the
-density below it visible.
+Mark the sites lying on a boundary between two different basins, drawing a line `width`
+sites across. Whenever two adjacent sites carry different labels, the line is laid down
+symmetrically about the pair, so it straddles the boundary instead of sitting on one side
+of it. The cut is periodic by design, so the neighbours are taken modulo the size of the
+image. Sites inside a basin get `NaN`, so that the result can be drawn as a heatmap whose
+`nan_color` is transparent, leaving the density below it visible.
 """
-function basin_boundaries(labels::Array{Int,2})
+function basin_boundaries(labels::Array{Int,2}, width::Int = 2)
     nx, ny = size(labels)
     mask = fill(NaN32, nx, ny)
+    offsets = (1 - width ÷ 2):(width - width ÷ 2)
     for i in 1:nx, j in 1:ny
         l = labels[i, j]
-        right_differs = labels[mod1(i + 1, nx), j] != l
-        below_differs = labels[i, mod1(j + 1, ny)] != l
-        if right_differs || below_differs
-            mask[i, j] = 1.0f0
+        if labels[mod1(i + 1, nx), j] != l
+            for d in offsets
+                mask[mod1(i + d, nx), j] = 1.0f0
+            end
+        end
+        if labels[i, mod1(j + 1, ny)] != l
+            for d in offsets
+                mask[i, mod1(j + d, ny)] = 1.0f0
+            end
         end
     end
     return mask
 end
+
+"""
+    boundary_width(image_size) -> Int
+
+How many sites wide the boundary lines should be drawn. A fixed number of sites is not a
+fixed thickness on screen: the section is scaled to the window, so a two-site line that
+reads well on a 512×512 cut falls below one screen pixel on a 2048×2048 one. Growing the
+width with the section keeps the lines about equally thick whatever the resolution.
+"""
+boundary_width(image_size) = max(2, round(Int, maximum(image_size) / 256))
 
 """
     build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing, colorrange = nothing, result = nothing) -> Figure
@@ -167,7 +183,9 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
 
     if result !== nothing
         prelabels = lift(g -> sample_pre_watershed_labels(result, g), grid)
-        boundaries = lift(pl -> basin_boundaries(map(l -> result.basins[l], pl)), prelabels)
+        boundaries = lift(prelabels) do pl
+            basin_boundaries(map(l -> result.basins[l], pl), boundary_width(size(pl)))
+        end
         heatmap!(ax, boundaries; colormap = [:white, :white], colorrange = (0, 1),
                  nan_color = :transparent)
     end
