@@ -29,7 +29,58 @@ function global_density_limits(pd::PhasedData)
 end
 
 """
-    build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing, colorrange = nothing) -> Figure
+    global_density_limits(result::WatershedResult) -> Tuple{Float64,Float64}
+
+Same limits taken from an existing `WatershedResult`, whose density has already been
+sampled over the whole cell. No grid is built, so this is immediate.
+"""
+function global_density_limits(result::WatershedResult)
+    lo, hi = extrema(result.ρ)
+    return (lo, hi > lo ? hi : hi + eps(hi))
+end
+
+"""
+    basin_boundaries(labels::Array{Int,2}, width::Int = 2) -> Matrix{Float32}
+
+Mark the sites lying on a boundary between two different basins, drawing a line `width`
+sites across. Whenever two adjacent sites carry different labels, the line is laid down
+symmetrically about the pair, so it straddles the boundary instead of sitting on one side
+of it. The cut is periodic by design, so the neighbours are taken modulo the size of the
+image. Sites inside a basin get `NaN`, so that the result can be drawn as a heatmap whose
+`nan_color` is transparent, leaving the density below it visible.
+"""
+function basin_boundaries(labels::Array{Int,2}, width::Int = 2)
+    nx, ny = size(labels)
+    mask = fill(NaN32, nx, ny)
+    offsets = (1 - width ÷ 2):(width - width ÷ 2)
+    for i in 1:nx, j in 1:ny
+        l = labels[i, j]
+        if labels[mod1(i + 1, nx), j] != l
+            for d in offsets
+                mask[mod1(i + d, nx), j] = 1.0f0
+            end
+        end
+        if labels[i, mod1(j + 1, ny)] != l
+            for d in offsets
+                mask[i, mod1(j + d, ny)] = 1.0f0
+            end
+        end
+    end
+    return mask
+end
+
+"""
+    boundary_width(image_size) -> Int
+
+How many sites wide the boundary lines should be drawn. A fixed number of sites is not a
+fixed thickness on screen: the section is scaled to the window, so a two-site line that
+reads well on a 512×512 cut falls below one screen pixel on a 2048×2048 one. Growing the
+width with the section keeps the lines about equally thick whatever the resolution.
+"""
+boundary_width(image_size) = max(2, round(Int, maximum(image_size) / 256))
+
+"""
+    build_viewer(pd::PhasedData; on_add_view = _ -> nothing, init = nothing, colorrange = nothing, result = nothing) -> Figure
 
 Build an interactive window that shows a 2D section of the density stored in `pd`.
 The sampling grid (`direction`, `origin`, `size`) is edited in the controls and
@@ -38,9 +89,10 @@ current sampling grid, so the caller can open another window; `init` is a `Sampl
 the controls start from (used to clone a view). On open it shows `init`, or the default
 section (first two axes, origin 0, 1024×1024) when `init` is not given. `colorrange`, if
 given, fixes the heatmap colour range for every section (a shared/global scale);
-otherwise each section is scaled to its own extrema.
+otherwise each section is scaled to its own extrema. `result`, if given, is a
+`WatershedResult` whose basin boundaries are drawn as white lines on top of the density.
 """
-function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing, colorrange = nothing) where {N}
+function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing, colorrange = nothing, result = nothing) where {N}
     init_grid = init === nothing ?
         SamplingGrid(SMatrix{2,N,Int}([i == j ? 1 : 0 for i in 1:2, j in 1:N]),
                      zero(SVector{N,Float64}), (1024, 1024)) : init
@@ -111,9 +163,14 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
         SamplingGrid(d, o, s)
     end
 
-    #recompute only when Apply is pressed, "Add a view" clones the current section
+    # Recompute only when Apply is pressed, and only if the controls really describe
+    # another cut: pressing Apply again with the same settings would otherwise redo the
+    # whole sampling and throw the identical result away.
     grid = Observable(current_grid())
-    on(_ -> (grid[] = current_grid()), apply.clicks)
+    on(apply.clicks) do _
+        new_grid = current_grid()
+        new_grid == grid[] || (grid[] = new_grid)
+    end
     on(_ -> on_add_view(grid[]), addview.clicks)
 
     density = lift(g -> sample_density(pd.peaks, g), grid)
@@ -123,6 +180,15 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
 
     Colorbar(top[1, 2], hm, label = "density")
     colsize!(top, 1, Aspect(1, init_grid.size[1] / init_grid.size[2]))
+
+    if result !== nothing
+        prelabels = lift(g -> sample_pre_watershed_labels(result, g), grid)
+        boundaries = lift(prelabels) do pl
+            basin_boundaries(map(l -> result.basins[l], pl), boundary_width(size(pl)))
+        end
+        heatmap!(ax, boundaries; colormap = [:white, :white], colorrange = (0, 1),
+                 nan_color = :transparent)
+    end
 
     on(_ -> reset_limits!(ax), density)
 
