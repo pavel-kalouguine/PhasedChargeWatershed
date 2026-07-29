@@ -9,8 +9,8 @@ import SpaceGroups: SpaceGroupQuotient, make_orbit, ExtinctOrbit, ComplexOrbit, 
 import JSON: parsefile
 import JLD2: jldsave, load
 import Makie: Figure, Axis, DataAspect, reset_limits!, hidedecorations!, GridLayout, Label,
-    Textbox, Slider, Button, set_close_to!, Observable, lift, on, heatmap!, Colorbar,
-    colsize!, Aspect, resize_to_layout!
+    Textbox, Slider, Button, Menu, set_close_to!, Observable, lift, on, notify, heatmap!,
+    Colorbar, colsize!, Aspect, resize_to_layout!
 
 
 include("types.jl")
