@@ -215,9 +215,9 @@ The postprocessing applies to the `N`-dimensional basins, of which the viewers o
 function build_basin_controls(result)
     fig = Figure(size = (600, 170))
 
-    summit = Slider(fig[1, 2]; range = 0:0.1:100, startvalue = 0, width = 260)
+    summit = Slider(fig[1, 2]; range = 0:0.001:1, startvalue = 0, width = 260)
     Label(fig[1, 1], lift(summit.value) do v
-              "unlabel basins whose summit is below $(round(v; digits = 1))% of the summit range"
+              "unlabel basins whose summit is below $(round(100v; digits = 1))% of the summit range"
           end, halign = :right)
     ratio = Slider(fig[2, 2]; range = 0:0.005:1, startvalue = 1, width = 260)
     Label(fig[2, 1], lift(ratio.value) do v

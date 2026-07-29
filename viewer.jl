@@ -11,7 +11,8 @@
 # always belong together.
 #
 # Opens one view. The "Add a view" button clones the current settings into a new window.
-# Views can be closed independently; closing the last one ends the program.
+# Views can be closed independently; the program ends with the last of them, or with the
+# window holding the basin controls.
 
 using GLMakie
 import PhasedChargeWatershed: load_data, load_result, build_viewer, build_basin_controls,
@@ -52,13 +53,18 @@ function add_view(init = nothing)
 end
 
 controls = nothing
+controls_open = Observable(true)
 if result !== nothing
+    fig = build_basin_controls(result)
     controls = GLMakie.Screen()
-    display(controls, build_basin_controls(result))
+    display(controls, fig)
+    on(isopen -> controls_open[] = isopen, events(fig.scene).window_open)
 end
 
 add_view()
-while !isempty(screens)   # running until every view is closed
+# the program ends with the last view, or with the basin controls
+while !isempty(screens) && controls_open[]
     sleep(0.1)
 end
+foreach(close, screens)
 controls === nothing || close(controls)

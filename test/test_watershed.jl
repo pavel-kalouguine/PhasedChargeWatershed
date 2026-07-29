@@ -15,9 +15,9 @@ using PhasedChargeWatershed: load_data, pre_watershed, sample_pre_watershed_labe
         @test result.basins == collect(eachindex(result.summits))
     end
 
-    # only the highest summit reaches a threshold of 100%
-    update_basins!(result, 100, 1, average)
-    @test count(!iszero, result.basins) == 1
+    # at the far end of its travel the threshold leaves nothing labeled
+    update_basins!(result, 1, 1, average)
+    @test all(iszero, result.basins)
 
     # a fused group is indexed by its smallest member
     update_basins!(result, 0, 0, average)

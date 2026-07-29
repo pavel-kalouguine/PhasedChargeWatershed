@@ -271,22 +271,22 @@ end
 
 
 """
-    update_basins!(result::WatershedResult, summit_percent::Real, saddle_ratio::Real, reference::Function)
+    update_basins!(result::WatershedResult, summit_level::Real, saddle_ratio::Real, reference::Function)
 
 Recompute `result.basins` in place.
 
 Pre-basins are fused when the saddle point between them rises above `saddle_ratio` of their
 summits, compared as `reference` says (`min`, `max`, or the average); the fused group takes
 the smallest of its indices, which is also its highest summit. A group whose summit stays
-below `summit_percent` of the range the summits span is left unlabeled, its elements set
-to 0. The range is taken between the lowest and the highest summit rather than from zero:
-the density is only known up to a constant, so zero is not a physical level.
+below `summit_level` of the range the summits span is left unlabeled, its elements set to
+0. The range is taken between the lowest and the highest summit rather than from zero: the
+density is only known up to a constant, so zero is not a physical level.
 
-`saddle_ratio = 1` together with `summit_percent = 0` reproduces the pre-watershed
-labelling exactly: a saddle point never rises above the summits it separates, and the
-interpolation of the cutoff is exact at the ends of the range.
+Both `summit_level` and `saddle_ratio` run over [0, 1], and both ends are exact:
+`summit_level = 0` with `saddle_ratio = 1` reproduces the pre-watershed labelling, and
+`summit_level = 1` leaves every basin unlabeled.
 """
-function update_basins!(result::WatershedResult, summit_percent::Real, saddle_ratio::Real,
+function update_basins!(result::WatershedResult, summit_level::Real, saddle_ratio::Real,
                         reference::Function)
     summit_ρ = result.ρ[result.summits]
     parent = collect(eachindex(summit_ρ))
@@ -297,8 +297,7 @@ function update_basins!(result::WatershedResult, summit_percent::Real, saddle_ra
         end
     end
     lowest, highest = extrema(summit_ρ)
-    t = summit_percent / 100
-    cutoff = (1 - t) * lowest + t * highest
+    cutoff = (1 - summit_level) * lowest + summit_level * nextfloat(highest)
     for i in eachindex(summit_ρ)
         r = basin_root(parent, i)
         result.basins[i] = summit_ρ[r] < cutoff ? 0 : r
