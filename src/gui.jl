@@ -212,7 +212,7 @@ Build the window postprocessing the basins of `result`.
 The postprocessing applies to the `N`-dimensional basins, of which the viewers only show
 2D cuts, so it is driven from a window of its own and acts on every open view at once.
 """
-function build_basin_controls(result)
+function build_basin_controls(result::Observable{<:WatershedResult})::Figure
     fig = Figure(size = (600, 170))
 
     summit = Slider(fig[1, 2]; range = 0:0.001:1, startvalue = 0, width = 260)
