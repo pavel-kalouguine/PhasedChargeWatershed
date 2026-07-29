@@ -278,7 +278,9 @@ Recompute `result.basins` in place.
 Pre-basins are fused when the saddle point between them reaches `saddle_ratio` of their
 summits, compared as `reference` says (`min`, `max`, or the average); the fused group takes
 the smallest of its indices, which is also its highest summit. A group whose summit stays
-below `summit_percent` of the global density maximum is left unlabeled, its elements set to 0.
+below `summit_percent` of the range the summits span is left unlabeled, its elements set
+to 0. The range is taken between the lowest and the highest summit rather than from zero:
+the density is only known up to a constant, so zero is not a physical level.
 """
 function update_basins!(result::WatershedResult, summit_percent::Real, saddle_ratio::Real,
                         reference::Function)
@@ -290,7 +292,8 @@ function update_basins!(result::WatershedResult, summit_percent::Real, saddle_ra
             fuse_basins!(parent, a, b)
         end
     end
-    cutoff = summit_percent / 100 * maximum(result.ρ)
+    lowest, highest = extrema(summit_ρ)
+    cutoff = (lowest * (100 - summit_percent) + highest * summit_percent) / 100
     for i in eachindex(summit_ρ)
         r = basin_root(parent, i)
         result.basins[i] = summit_ρ[r] < cutoff ? 0 : r

@@ -9,9 +9,9 @@ using PhasedChargeWatershed: load_data, pre_watershed, sample_pre_watershed_labe
     # sampled at the watershed sites themselves, the labels must come back unchanged
     @test sample_pre_watershed_labels(result, result.wg.grid) == result.labels
 
-    # a saddle point never rises above the summits it separates, so nothing fuses at 1
+    # with both controls at rest the pre-watershed labelling is reproduced
     update_basins!(result, 0, 1, average)
-    @test all(b == 0 || b == i for (i, b) in enumerate(result.basins))
+    @test result.basins == collect(eachindex(result.summits))
 
     # only the highest summit reaches a threshold of 100%
     update_basins!(result, 100, 1, average)
