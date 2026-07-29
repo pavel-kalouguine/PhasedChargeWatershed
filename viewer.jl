@@ -6,14 +6,16 @@
 # What is drawn follows from the file that is given. A .json holds phased data only, so
 # the density alone is shown; a .jld2 written by prewatershed.jl holds a watershed result
 # as well, and the boundaries between the basins are drawn as white lines over the
-# density, with a row of controls to postprocess them. A result carries the phased data it
-# was computed from, so the density and the basins on screen always belong together.
+# density, and a separate window postprocesses them for every view at once. A result
+# carries the phased data it was computed from, so the density and the basins on screen
+# always belong together.
 #
-# Opens one window. The "Add a view" button clones the current settings into a new
-# window. Windows can be closed independently; closing the last one ends the program.
+# Opens one view. The "Add a view" button clones the current settings into a new window.
+# Views can be closed independently; closing the last one ends the program.
 
 using GLMakie
-import PhasedChargeWatershed: load_data, load_result, build_viewer, global_density_limits
+import PhasedChargeWatershed: load_data, load_result, build_viewer, build_basin_controls,
+    global_density_limits
 
 length(ARGS) == 1 || error("usage: julia --project viewer.jl <data.json | results.jld2>")
 input_path = ARGS[1]
@@ -49,7 +51,14 @@ function add_view(init = nothing)
     return
 end
 
+controls = nothing
+if result !== nothing
+    controls = GLMakie.Screen()
+    display(controls, build_basin_controls(result))
+end
+
 add_view()
-while !isempty(screens)   # running until every window is closed
+while !isempty(screens)   # running until every view is closed
     sleep(0.1)
 end
+controls === nothing || close(controls)

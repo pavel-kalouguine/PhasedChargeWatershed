@@ -9,10 +9,10 @@
 # The section is (re)computed when the "Apply" button is pressed, so heavy data are
 # recomputed only on demand. The image aspect follows the requested size.
 #
-# When a watershed result is given, its basin boundaries are drawn over the density and a
-# second row of controls postprocesses the basins. These controls do not resample the
-# section: they only rewrite which pre-basin belongs to which basin, so the boundaries
-# follow the sliders as they are dragged.
+# When a watershed result is given, its basin boundaries are drawn over the density. The
+# postprocessing of the basins is driven from a window of its own and acts on every view at
+# once. It does not resample the section: it only rewrites which pre-basin belongs to which
+# basin, so the boundaries follow the sliders as they are dragged.
 #
 # The code uses only the Makie API; the launcher picks the backend (GLMakie).
 
@@ -95,9 +95,9 @@ the controls start from (used to clone a view). On open it shows `init`, or the 
 section (first two axes, origin 0, 1024×1024) when `init` is not given. `colorrange`, if
 given, fixes the heatmap colour range for every section (a shared/global scale);
 otherwise each section is scaled to its own extrema. `result`, if given, is an
-`Observable` holding a `WatershedResult`: its basin boundaries are drawn as white lines
-on top of the density, and a second row of controls postprocesses the basins. Several
-windows can share the same observable, and then they all follow the same postprocessing.
+`Observable` holding a `WatershedResult`, whose basin boundaries are drawn as white lines
+on top of the density. Several windows can share the same observable, and then they all
+follow the postprocessing driven from `build_basin_controls`.
 """
 function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = nothing, colorrange = nothing, result = nothing) where {N}
     init_grid = init === nothing ?
@@ -195,30 +195,44 @@ function build_viewer(pd::PhasedData{N}; on_add_view = _ -> nothing, init = noth
         end
         heatmap!(ax, boundaries; colormap = [:white, :white], colorrange = (0, 1),
                  nan_color = :transparent)
-
-        #postprocessing of the basins
-        post = GridLayout(fig[3, 1], tellheight = true)
-        summit = Slider(post[1, 2]; range = 0:0.1:100, startvalue = 0, width = 260)
-        Label(post[1, 1], lift(summit.value) do v
-                  "unlabel basins whose summit is below $(round(v; digits = 1))% of the maximum"
-              end, halign = :right)
-        ratio = Slider(post[2, 2]; range = 0:0.005:1, startvalue = 1, width = 260)
-        Label(post[2, 1], lift(ratio.value) do v
-                  "fuse basins whose saddle is above $(round(100v; digits = 1))% of their summits"
-              end, halign = :right)
-        references = [("average", ((a, b) -> (a + b) / 2)), ("minimum", min), ("maximum", max)]
-        reference = Menu(post[3, 2]; options = references, default = "average", width = 260)
-        Label(post[3, 1], "summits compared as their", halign = :right)
-
-        for signal in (summit.value, ratio.value, reference.selection)
-            on(signal) do _
-                update_basins!(result[], summit.value[], ratio.value[], reference.selection[])
-                notify(result)
-            end
-        end
     end
 
     on(_ -> reset_limits!(ax), density)
+
+    resize_to_layout!(fig)
+
+    fig
+end
+
+"""
+    build_basin_controls(result::Observable{<:WatershedResult}) -> Figure
+
+Build the window postprocessing the basins of `result`.
+
+The postprocessing applies to the `N`-dimensional basins, of which the viewers only show
+2D cuts, so it is driven from a window of its own and acts on every open view at once.
+"""
+function build_basin_controls(result)
+    fig = Figure(size = (600, 170))
+
+    summit = Slider(fig[1, 2]; range = 0:0.1:100, startvalue = 0, width = 260)
+    Label(fig[1, 1], lift(summit.value) do v
+              "unlabel basins whose summit is below $(round(v; digits = 1))% of the summit range"
+          end, halign = :right)
+    ratio = Slider(fig[2, 2]; range = 0:0.005:1, startvalue = 1, width = 260)
+    Label(fig[2, 1], lift(ratio.value) do v
+              "fuse basins whose saddle is above $(round(100v; digits = 1))% of their summits"
+          end, halign = :right)
+    references = [("average", ((a, b) -> (a + b) / 2)), ("minimum", min), ("maximum", max)]
+    reference = Menu(fig[3, 2]; options = references, default = "average", width = 260)
+    Label(fig[3, 1], "summits compared as their", halign = :right)
+
+    for signal in (summit.value, ratio.value, reference.selection)
+        on(signal) do _
+            update_basins!(result[], summit.value[], ratio.value[], reference.selection[])
+            notify(result)
+        end
+    end
 
     resize_to_layout!(fig)
 
