@@ -10,8 +10,10 @@ using PhasedChargeWatershed: load_data, pre_watershed, sample_pre_watershed_labe
     @test sample_pre_watershed_labels(result, result.wg.grid) == result.labels
 
     # with both controls at rest the pre-watershed labelling is reproduced
-    update_basins!(result, 0, 1, average)
-    @test result.basins == collect(eachindex(result.summits))
+    for reference in (average, min, max)
+        update_basins!(result, 0, 1, reference)
+        @test result.basins == collect(eachindex(result.summits))
+    end
 
     # only the highest summit reaches a threshold of 100%
     update_basins!(result, 100, 1, average)
