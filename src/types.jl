@@ -135,7 +135,8 @@ Fields:
 - `saddles`: a dictionary of the saddle points indexed by ordered tuple of labels.
 - `basins`: the indices of drainage basins, constructed on the postprocessing stage.
     Each basin may comprise sites with several labels; the basin index equals
-    the smallest label of the sites composing the basin.
+    the smallest label of the sites composing the basin, and 0 means that the
+    sites are left unlabeled.
 """
 struct WatershedResult{N,D}
     phased_data::PhasedData{N,D}

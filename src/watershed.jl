@@ -246,6 +246,67 @@ end
 
 
 """
+    basin_root(parent::Vector{Int}, i::Int)
+
+Index of the basin the pre-basin `i` was fused into, following `parent` up to a fixed point.
+"""
+function basin_root(parent::Vector{Int}, i::Int)
+    while parent[i] != i
+        i = parent[i]
+    end
+    return i
+end
+
+
+"""
+    fuse_basins!(parent::Vector{Int}, i::Int, j::Int)
+
+Fuse the basins of the pre-basins `i` and `j`, keeping the smaller of the two indices.
+"""
+function fuse_basins!(parent::Vector{Int}, i::Int, j::Int)
+    a, b = minmax(basin_root(parent, i), basin_root(parent, j))
+    parent[b] = a
+    return nothing
+end
+
+
+"""
+    update_basins!(result::WatershedResult, summit_level::Real, saddle_ratio::Real, reference::Function)
+
+Recompute `result.basins` in place.
+
+Pre-basins are fused when the saddle point between them rises above `saddle_ratio` of their
+summits, compared as `reference` says (`min`, `max`, or the average); the fused group takes
+the smallest of its indices, which is also its highest summit. A group whose summit stays
+below `summit_level` of the range the summits span is left unlabeled, its elements set to
+0. The range is taken between the lowest and the highest summit rather than from zero: the
+density is only known up to a constant, so zero is not a physical level.
+
+Both `summit_level` and `saddle_ratio` run over [0, 1], and both ends are exact:
+`summit_level = 0` with `saddle_ratio = 1` reproduces the pre-watershed labelling, and
+`summit_level = 1` leaves every basin unlabeled.
+"""
+function update_basins!(result::WatershedResult, summit_level::Real, saddle_ratio::Real,
+                        reference::Function)
+    summit_ρ = result.ρ[result.summits]
+    parent = collect(eachindex(summit_ρ))
+    for sp in values(result.saddles)
+        a, b = sp.labels
+        if minimum(sp.values) > saddle_ratio * reference(summit_ρ[a], summit_ρ[b])
+            fuse_basins!(parent, a, b)
+        end
+    end
+    lowest, highest = extrema(summit_ρ)
+    cutoff = (1 - summit_level) * lowest + summit_level * nextfloat(highest)
+    for i in eachindex(summit_ρ)
+        r = basin_root(parent, i)
+        result.basins[i] = summit_ρ[r] < cutoff ? 0 : r
+    end
+    return result
+end
+
+
+"""
     sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingGrid{N,M}) where {N,M}
 
 Sample the pre-watershed basin labels onto the sites of a given sampling grid.
@@ -266,7 +327,9 @@ function sample_pre_watershed_labels(result::WatershedResult{N}, grid::SamplingG
         x = mod.(grid.direction' * SVector((ind.I.-1)./grid.size) + grid.origin, 1) 
         v=round.(Int, result.wg.L * x) # Nearest site position in the `N`-dimensional basis of the watershed grid
         #TODO: Find the actual nearest site
-        i = mod1(v'*result.wg.basis_indices, d) # Index of the nearest site in the cyclic watershed grid
+        # Index of the nearest site in the cyclic watershed grid. The shift given by the
+        # basis indices is counted from site 1, which sits at the origin.
+        i = mod(v'*result.wg.basis_indices, d) + 1
         sampled_labels[ind] = result.labels[i]
     end
     sampled_labels
