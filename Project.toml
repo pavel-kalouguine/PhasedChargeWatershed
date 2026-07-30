@@ -1,6 +1,6 @@
 name = "PhasedChargeWatershed"
 uuid = "7ae2c33a-4134-407d-94c5-d28cd08507e6"
-version = "0.1.0"
+version = "0.1.0-rc1"
 
 [deps]
 ChargeFlipPhaser = "932843b2-4280-42b7-9350-1fdceb79e920"
