@@ -67,7 +67,10 @@ function main(args)
     while !isempty(screens) && controls_open[]
         sleep(0.1)
     end
-    foreach(close, screens)
+
+    # Create a shallow copy of the set to avoid modifying it while iterating
+    screens_copy = Set(screens)
+    foreach(close, screens_copy)
     controls === nothing || close(controls)
 end
 
