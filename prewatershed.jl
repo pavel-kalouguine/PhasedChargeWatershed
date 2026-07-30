@@ -18,32 +18,36 @@
 
 import PhasedChargeWatershed: load_data, pre_watershed, save_result
 
-if !(2 <= length(ARGS) <= 4)
-    error("usage: julia --project prewatershed.jl <input.json> <output.jld2> [density_factor] [n_attempts]")
-end
-input_path, output_path = ARGS[1], ARGS[2]
-isfile(input_path) || error("input file not found: $input_path")
-output_dir = dirname(abspath(output_path))
-isdir(output_dir) || error("output directory does not exist: $output_dir")
-
 # Read a trailing optional argument, falling back to the default
-function read_optional(position, T, name, default)
-    length(ARGS) < position && return default
-    value = tryparse(T, ARGS[position])
-    value === nothing && error("$name: expected $T, got \"$(ARGS[position])\"")
+function read_optional(args, position, T, name, default)
+    length(args) < position && return default
+    value = tryparse(T, args[position])
+    value === nothing && error("$name: expected $T, got \"$(args[position])\"")
     return value
 end
 
-density_factor = read_optional(3, Float64, "density_factor", 1.0)
-n_attempts = read_optional(4, Int, "n_attempts", 1000)
+function main(args)
+    if !(2 <= length(args) <= 4)
+        error("usage: julia --project prewatershed.jl <input.json> <output.jld2> [density_factor] [n_attempts]")
+    end
+    input_path, output_path = args[1], args[2]
+    isfile(input_path) || error("input file not found: $input_path")
+    output_dir = dirname(abspath(output_path))
+    isdir(output_dir) || error("output directory does not exist: $output_dir")
 
-phased_data = load_data(input_path)
-println("loaded $(length(phased_data.peaks)) peaks from $input_path")
+    density_factor = read_optional(args, 3, Float64, "density_factor", 1.0)
+    n_attempts = read_optional(args, 4, Int, "n_attempts", 1000)
 
-println("running the pre-watershed with density_factor = $density_factor, n_attempts = $n_attempts ...")
-result = pre_watershed(phased_data; density_factor = density_factor, n_attempts = n_attempts)
-println("got $(length(result.summits)) basins and $(length(result.saddles)) saddle points",
-        " on a grid of $(result.wg.grid.size[1]) sites")
+    phased_data = load_data(input_path)
+    println("loaded $(length(phased_data.peaks)) peaks from $input_path")
 
-save_result(output_path, result)
-println("saved the result to $output_path")
+    println("running the pre-watershed with density_factor = $density_factor, n_attempts = $n_attempts ...")
+    result = pre_watershed(phased_data; density_factor = density_factor, n_attempts = n_attempts)
+    println("got $(length(result.summits)) basins and $(length(result.saddles)) saddle points",
+            " on a grid of $(result.wg.grid.size[1]) sites")
+
+    save_result(output_path, result)
+    println("saved the result to $output_path")
+end
+
+main(ARGS)
